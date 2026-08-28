@@ -119,3 +119,25 @@ def test_wrong_key_cli_fails(tmp_path: Path, frames_16: np.ndarray, session_key:
     rc = main(["decrypt", "--in", str(outp), "--out", str(rec), "--key", bad.hex()])
     assert rc != 0
     assert not rec.exists()
+
+
+def test_help_lists_ui_and_version() -> None:
+    from veillock.cli import _build_parser
+
+    text = _build_parser().format_help()
+    assert "ui" in text
+    assert "version" in text
+    assert "tether" in text
+    assert "apps" in text
+    assert "encrypt" in text
+    assert "decrypt" in text
+    assert "127.0.0.1:8761" in text or "veillock ui" in text
+
+
+def test_ui_refuses_non_loopback() -> None:
+    import pytest
+    from veillock.ui import LOOPBACK, make_server
+
+    assert "127.0.0.1" in LOOPBACK
+    with pytest.raises(ValueError, match="loopback"):
+        make_server(host="0.0.0.0", port=0)

@@ -36,6 +36,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7.4"]
+tether = ["opencv-python-headless>=4.8", "pyvirtualcam>=0.11"]
 
 [project.scripts]
 veillock = "veillock.cli:main"

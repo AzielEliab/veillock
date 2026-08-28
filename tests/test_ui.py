@@ -27,7 +27,7 @@ def _start():
     return httpd, thread
 
 
-def test_ui_get_root_contains_veillock() -> None:
+def test_ui_get_root_contains_tether() -> None:
     import urllib.request
 
     httpd, thread = _start()
@@ -38,6 +38,7 @@ def test_ui_get_root_contains_veillock() -> None:
             assert res.status == 200
             assert b"VeilLock" in body
             assert b"127.0.0.1" in body
+            assert b"Tether" in body
     finally:
         httpd.shutdown()
         httpd.server_close()

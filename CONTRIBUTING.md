@@ -31,7 +31,8 @@ Python 3.10+, numpy, cryptography, pytest. No hardware. Fixtures in
    is the encryption engine: frames the caller already holds, sealed
    before display. Capture of another process’s screen is out of scope.
 4. **Keep the dependency list small.** numpy + cryptography in the core
-   CLI. Optional dev extra is pytest.
+   CLI. Optional dev extra is pytest. Optional tether extra is
+   opencv-python-headless + pyvirtualcam (never add those to core).
 5. **Forward secrecy is not optional.** Rotation must drop old session
    keys. Do not cache epoch keys “for convenience.”
 6. **Do not gut crypto to make a test pass.** If a threshold is too
@@ -45,7 +46,9 @@ Python 3.10+, numpy, cryptography, pytest. No hardware. Fixtures in
 - Phoenix Loop: `veillock/phoenix.py`
 - Metadata scrub: `veillock/metadata.py`
 - Modes and decoy frames: `veillock/modes.py`
+- Camera / screen tether: `veillock/sources.py`, `veillock/tether.py`
 - New behavior needs a synthetic test that fails without the change.
+  Tether tests mock VideoCapture and pyvirtualcam; no camera required.
 
 ## Reporting downloads from a fork
 

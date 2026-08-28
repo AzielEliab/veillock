@@ -2,6 +2,8 @@
 
     veillock encrypt --in frames.npy --out cipher.npz --mode private|broadcast|obfuscation
     veillock decrypt --in cipher.npz --out frames.npy --key ...
+    veillock tether [--source camera|screen] [--mode obfuscation] [--device 0]
+    veillock apps
     veillock ui [--host 127.0.0.1] [--port 8761]
     veillock version
 """
@@ -32,7 +34,8 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="veillock",
         description=(
             "VeilLock — encrypt visual frames before they reach any external "
-            "display (Aziel Eliab, July 2026)."
+            "display (Aziel Eliab, July 2026). "
+            "Local UI: `veillock ui` at http://127.0.0.1:8761."
         ),
     )
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -82,6 +85,42 @@ def _build_parser() -> argparse.ArgumentParser:
     p_ui = sub.add_parser("ui", aliases=["serve"], help="Run the localhost UI (127.0.0.1).")
     p_ui.add_argument("--host", default="127.0.0.1", help="Bind host (default 127.0.0.1).")
     p_ui.add_argument("--port", type=int, default=8761, help="Bind port (default 8761).")
+
+    p_tether = sub.add_parser(
+        "tether",
+        help="Pipe YOUR camera/screen through VeilLock as virtual camera VeilLock.",
+    )
+    p_tether.add_argument(
+        "--source",
+        choices=("camera", "screen"),
+        default="camera",
+        help="Local source: this machine's camera (default) or this machine's screen.",
+    )
+    p_tether.add_argument(
+        "--mode",
+        choices=("obfuscation", "private", "broadcast"),
+        default="obfuscation",
+        help="Public feed mode (default obfuscation: call apps see synthetic UI noise).",
+    )
+    p_tether.add_argument(
+        "--device",
+        default=0,
+        type=int,
+        help="OpenCV camera index (default 0). Ignored for --source screen.",
+    )
+    p_tether.add_argument(
+        "--trusted",
+        action="store_true",
+        help="Send trusted local decode to the virtual camera (your choice). Default: decoy/black.",
+    )
+    p_tether.add_argument("--width", type=int, default=640, help="Virtual camera width (default 640).")
+    p_tether.add_argument("--height", type=int, default=480, help="Virtual camera height (default 480).")
+    p_tether.add_argument("--fps", type=float, default=15, help="Virtual camera fps (default 15).")
+
+    sub.add_parser(
+        "apps",
+        help="How to pick VeilLock in Zoom, Skype, FaceTime (Mac), Meet, Teams.",
+    )
     return parser
 
 
@@ -121,8 +160,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.cmd in ("ui", "serve"):
         from veillock.ui import serve
 
-        serve(host=args.host, port=args.port)
+        try:
+            serve(host=args.host, port=args.port)
+        except ValueError as exc:
+            sys.stderr.write(f"error: {exc}\n")
+            return 2
         return 0
+
+    if args.cmd == "apps":
+        from veillock.tether import APPS_GUIDE
+
+        sys.stdout.write(APPS_GUIDE)
+        if not APPS_GUIDE.endswith("\n"):
+            sys.stdout.write("\n")
+        return 0
+
+    if args.cmd == "tether":
+        from veillock.tether import run_from_args
+
+        return run_from_args(args)
 
     if args.cmd == "encrypt":
         frames = _load_frames(args.inp)

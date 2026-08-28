@@ -15,9 +15,11 @@ import numpy as np
 from veillock import __version__
 from veillock.engine import VeilLockSession
 from veillock.modes import Mode
+from veillock.tether import APPS_GUIDE, RUNTIME, TetherConfig
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8761
+LOOPBACK = frozenset({"127.0.0.1", "localhost", "::1"})
 MAX_BODY = 2 * 1024 * 1024
 
 PAGE = r"""<!DOCTYPE html>
@@ -62,6 +64,11 @@ PAGE = r"""<!DOCTYPE html>
     word-break: break-all; }
   .err { color: #e07a7a; }
   footer { margin-top: 2rem; color: #6d6584; font-size: 0.8rem; }
+  button.ghost { font-family: inherit; cursor: pointer; border: 1px solid var(--line);
+    border-radius: 8px; padding: 0.55rem 1.15rem; background: transparent; color: var(--ink); margin-left: 0.4rem; }
+  pre.apps { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.78rem;
+    color: var(--muted); background: #0d0b14; border: 1px solid var(--line); padding: 0.75rem; border-radius: 6px; }
+  label.inline { display: flex; align-items: center; gap: 0.45rem; margin-top: 0.75rem; color: var(--ink); }
 </style>
 </head>
 <body>
@@ -95,6 +102,30 @@ PAGE = r"""<!DOCTYPE html>
     </div>
     <p class="cap">Ciphertext hex (first 96 bytes)</p>
     <p class="hex" id="hex"></p>
+  </section>
+  <section class="card" id="tether">
+    <h2>Tether</h2>
+    <p class="help">Pipe <em>your</em> camera or screen through VeilLock into Zoom, FaceTime (Mac), Skype, Meet, or Teams. The call app must choose the virtual camera named <strong>VeilLock</strong>. Not a call interceptor. iPhone FaceTime cannot select a third-party virtual camera (Apple).</p>
+    <label>Source</label>
+    <select id="tether-source">
+      <option value="camera" selected>camera (this device)</option>
+      <option value="screen">screen (this display)</option>
+    </select>
+    <label>Mode</label>
+    <select id="tether-mode">
+      <option value="obfuscation" selected>obfuscation (call apps see synthetic UI noise)</option>
+      <option value="private">private (black unless trusted decode)</option>
+      <option value="broadcast">broadcast</option>
+    </select>
+    <label class="inline"><input type="checkbox" id="tether-trusted"> Trusted decode to the virtual camera (your choice; default off)</label>
+    <p style="margin-top:0.95rem">
+      <button class="primary" id="tether-start" type="button">Start</button>
+      <button class="ghost" id="tether-stop" type="button">Stop</button>
+      <button class="ghost" id="copy-apps" type="button">Copy app instructions</button>
+    </p>
+    <p class="help" id="tether-status">Stopped. Default mode is obfuscation.</p>
+    <h2>App instructions</h2>
+    <pre class="apps" id="apps-help">__APPS__</pre>
   </section>
   <p class="err" id="err" hidden></p>
   <footer>VeilLock __VERSION__ · Apache-2.0 · forks welcome · <code>veillock ui</code></footer>
@@ -147,11 +178,53 @@ PAGE = r"""<!DOCTYPE html>
       $("err").textContent = String(e.message || e);
     } finally { $("go").disabled = false; }
   };
+  $("tether-start").onclick = async () => {
+    $("err").hidden = true;
+    $("tether-start").disabled = true;
+    try {
+      const res = await fetch("/api/tether/start", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          source: $("tether-source").value,
+          mode: $("tether-mode").value,
+          trusted: $("tether-trusted").checked,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) throw new Error(data.error || ("HTTP " + res.status));
+      $("tether-status").textContent = "Running. Pick camera VeilLock in the call app.";
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+      $("tether-status").textContent = "Start failed.";
+    } finally { $("tether-start").disabled = false; }
+  };
+  $("tether-stop").onclick = async () => {
+    try {
+      await fetch("/api/tether/stop", {method: "POST"});
+      $("tether-status").textContent = "Stopped.";
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    }
+  };
+  $("copy-apps").onclick = async () => {
+    const text = $("apps-help").textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      $("tether-status").textContent = "App instructions copied.";
+    } catch (e) {
+      $("tether-status").textContent = "Copy failed — select the instructions and copy manually.";
+    }
+  };
 })();
 </script>
 </body>
 </html>
 """.replace("__VERSION__", __version__)
+
+PAGE = PAGE.replace("__APPS__", APPS_GUIDE)
 
 
 def _rgb_b64(frame: np.ndarray) -> str:
@@ -200,19 +273,42 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/health":
             self._json(200, {"ok": True, "bind_host": DEFAULT_HOST, "name": "VeilLock"})
             return
+        if path == "/api/apps":
+            self._send(200, APPS_GUIDE.encode("utf-8"), "text/plain; charset=utf-8")
+            return
+        if path == "/api/tether":
+            self._json(200, RUNTIME.status())
+            return
         self._json(404, {"error": "not found"})
 
     def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
-        if path != "/api/demo":
-            self._json(404, {"error": "not found"})
-            return
         length = int(self.headers.get("Content-Length") or 0)
         if length > MAX_BODY:
             self._json(400, {"error": "payload too large"})
             return
+        raw = self.rfile.read(length) if length else b""
+        if path == "/api/tether/stop":
+            self._json(200, RUNTIME.stop())
+            return
+        if path == "/api/tether/start":
+            try:
+                body = json.loads(raw.decode("utf-8") or "{}") if raw else {}
+                cfg = TetherConfig(
+                    source=str(body.get("source") or "camera"),
+                    mode=str(body.get("mode") or "obfuscation"),
+                    trusted=bool(body.get("trusted")),
+                    device=int(body.get("device") or 0),
+                )
+                self._json(200, RUNTIME.start(cfg))
+            except Exception as exc:  # noqa: BLE001
+                self._json(400, {"ok": False, "error": str(exc)})
+            return
+        if path != "/api/demo":
+            self._json(404, {"error": "not found"})
+            return
         try:
-            body = json.loads(self.rfile.read(length).decode("utf-8") or "{}") if length else {}
+            body = json.loads(raw.decode("utf-8") or "{}") if raw else {}
             mode = Mode.parse(str(body.get("mode") or "private"))
             frames = _synthetic_frames()
             key = secrets.token_bytes(32)
@@ -259,6 +355,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def make_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> ThreadingHTTPServer:
+    if host not in LOOPBACK:
+        raise ValueError("VeilLock UI binds loopback only (127.0.0.1)")
     return ThreadingHTTPServer((host, port), Handler)
 
 
