@@ -19,17 +19,12 @@ How to contribute: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Download
 
-**GitHub Releases (placeholder until a tagged build is cut):**
-
-# → [https://github.com/AzielEliab/veillock/releases](https://github.com/AzielEliab/veillock/releases) ←
-
 **Hosted (Cloudflare Worker, counted across branches and forks):**
 
-# → [https://veillock-download-tracker.vibelock.workers.dev](https://veillock-download-tracker.vibelock.workers.dev) ←
+# → [https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.1.0.tar.gz](https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.1.0.tar.gz) ←
 
-Tracked tarball (after the worker is deployed and an asset is published):
+Direct file: [veillock-0.1.0.tar.gz](https://veillock-download-tracker.vibelock.workers.dev/veillock-0.1.0.tar.gz)
 
-- [https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.1.0.tar.gz](https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.1.0.tar.gz)
 - Tracker home: [https://veillock-download-tracker.vibelock.workers.dev/](https://veillock-download-tracker.vibelock.workers.dev/)
 - Stats: [https://veillock-download-tracker.vibelock.workers.dev/stats](https://veillock-download-tracker.vibelock.workers.dev/stats)
 - GitHub releases: [https://github.com/AzielEliab/veillock/releases](https://github.com/AzielEliab/veillock/releases)
