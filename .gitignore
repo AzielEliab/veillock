@@ -7,3 +7,12 @@ dist/
 examples/_out
 node_modules/
 workers/download-tracker/node_modules/
+
+# Flutter (mobile/)
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
