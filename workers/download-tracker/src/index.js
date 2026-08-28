@@ -12,6 +12,7 @@
  */
 
 const PROJECT = "veillock";
+const DEFAULT_ASSET = "veillock-0.1.0.tar.gz";
 const DEFAULT_OWNER = "AzielEliab";
 const DEFAULT_REPO = "veillock";
 const DEFAULT_BRANCH = "main";
@@ -159,19 +160,41 @@ async function collectStats(env) {
   };
 }
 
-function indexHtml() {
+async function indexHtml(env) {
+  const stats = await collectStats(env);
+  const total = Number(stats.total) || 0;
+  const n = total.toLocaleString("en-US");
+  const github = (typeof GITHUB_LATEST !== "undefined" && GITHUB_LATEST)
+    ? GITHUB_LATEST
+    : GITHUB_RELEASES;
   return `<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VeilLock downloads</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 16px/1.45 system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1.25rem; background: #0e1014; color: #e8eaef; }
+  h1 { font-size: 1.75rem; margin: 0 0 .35rem; }
+  .motto { color: #9aa3b2; margin: 0 0 1.5rem; }
+  .card { border: 1px solid #2a3140; border-radius: 12px; padding: 1.25rem 1.35rem; background: #151922; }
+  .count { font-size: 2.4rem; font-variant-numeric: tabular-nums; font-weight: 700; margin: 0; }
+  .count span { font-size: 1rem; font-weight: 500; color: #9aa3b2; }
+  a.dl { display: inline-block; margin-top: 1rem; background: #e8eaef; color: #0e1014; text-decoration: none; font-weight: 650; padding: .65rem 1rem; border-radius: 8px; }
+  .meta { margin-top: 1.1rem; color: #9aa3b2; font-size: .92rem; }
+  .meta a { color: #c9d4ff; }
+  .iso { margin-top: .85rem; font-size: .85rem; color: #7d8696; }
+</style>
 <body>
-  <h1>VeilLock downloads</h1>
-  <p>Render → encrypt → decode locally → display.</p>
-  <p><strong>Hosted download:</strong> <a href="/download?asset=veillock-0.1.0.tar.gz">veillock-0.1.0.tar.gz</a></p>
-  <p>GitHub releases: <a href="${GITHUB_RELEASES}">${GITHUB_RELEASES}</a></p>
-  <p>Counts (canonical repo, branches, and forks): <a href="/stats">/stats</a></p>
-  <p>GET /download hosts the tarball. GET /go 302s to GitHub.</p>
-  <p>Forks are welcome and always allowed. Report a download with POST /event.</p>
+  <h1>VeilLock</h1>
+  <p class="motto">Render to encrypt to decode locally to display.</p>
+  <div class="card">
+    <p class="count">${n}<span> downloads of this project</span></p>
+    <a class="dl" href="/download?asset=veillock-0.1.0.tar.gz">Download veillock-0.1.0.tar.gz — ${n} counted</a>
+    <p class="meta">The count ticks on this click. Nobody reports anything. Forks using this same link are counted automatically.</p>
+    <p class="iso">Isolated counter: Worker <code>veillock-download-tracker</code>, project <code>veillock</code>. Not mixed with any other *Lock.</p>
+    <p class="meta"><a href="/stats">JSON stats</a> · <a href="${github}">GitHub releases</a></p>
+  </div>
 </body>
 </html>`;
 }
@@ -185,9 +208,14 @@ export default {
     }
 
     if (url.pathname === "/" && request.method === "GET") {
-      return new Response(indexHtml(), {
+      return new Response(await indexHtml(env), {
         headers: { "Content-Type": "text/html; charset=utf-8", ...corsHeaders() },
       });
+    }
+
+    if (url.pathname === "/count" && request.method === "GET") {
+      const stats = await collectStats(env);
+      return json({ project: PROJECT, total: stats.total || 0 });
     }
 
     if (url.pathname === "/stats" && request.method === "GET") {
