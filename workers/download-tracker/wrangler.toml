@@ -1,0 +1,13 @@
+name = "veillock-download-tracker"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "DOWNLOADS"
+id = "REPLACE_ME"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/", "/download", "/download/*", "/stats", "/event", "/go"]

@@ -1,0 +1,9 @@
+.venv
+__pycache__/
+*.pyc
+dist/
+*.egg-info/
+.pytest_cache/
+examples/_out
+node_modules/
+workers/download-tracker/node_modules/
