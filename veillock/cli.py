@@ -2,6 +2,7 @@
 
     veillock encrypt --in frames.npy --out cipher.npz --mode private|broadcast|obfuscation
     veillock decrypt --in cipher.npz --out frames.npy --key ...
+    veillock ui [--host 127.0.0.1] [--port 8761]
     veillock version
 """
 
@@ -77,6 +78,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     sub.add_parser("version", help="Print the VeilLock version and exit.")
+
+    p_ui = sub.add_parser("ui", aliases=["serve"], help="Run the localhost UI (127.0.0.1).")
+    p_ui.add_argument("--host", default="127.0.0.1", help="Bind host (default 127.0.0.1).")
+    p_ui.add_argument("--port", type=int, default=8761, help="Bind port (default 8761).")
     return parser
 
 
@@ -111,6 +116,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.cmd == "version":
         sys.stdout.write(f"veillock {__version__}\n")
+        return 0
+
+    if args.cmd in ("ui", "serve"):
+        from veillock.ui import serve
+
+        serve(host=args.host, port=args.port)
         return 0
 
     if args.cmd == "encrypt":

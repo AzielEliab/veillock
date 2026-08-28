@@ -36,6 +36,13 @@ Direct tarball (also counted): [veillock-0.1.0.tar.gz](https://veillock-download
 
 ---
 
+
+## Local UI
+
+`veillock ui` serves a loopback dashboard at http://127.0.0.1:8761
+
+Binds to `127.0.0.1` only. Self-contained HTML (no CDN). Synthetic frames are sealed in-process; the session key is shown once.
+
 ## What it does
 
 VeilLock is a three-layer pipeline:
@@ -100,6 +107,7 @@ veillock decrypt --in cipher.npz --out frames.npy --key <hex>
 veillock decrypt --in cipher.npz --out frames.npy --receiver-secret <hex>
 
 veillock version
+veillock ui            # localhost UI on 127.0.0.1:8761
 ```
 
 `encrypt` prints `session_key=<hex>` (and `receiver_secret=<hex>` in
