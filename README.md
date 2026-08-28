@@ -234,6 +234,32 @@ mobile/             Flutter iPhone & Android client
 CONTRIBUTING.md     forks are first-class
 ```
 
+## Use with Grok, ChatGPT, Venice
+
+Live HTTPS runtime on the download-tracker Worker (does **not** increment the download counter):
+
+- OpenAPI 3.1: https://veillock-download-tracker.vibelock.workers.dev/openapi.json
+- Health: https://veillock-download-tracker.vibelock.workers.dev/v1/health
+- How to wire tools: https://veillock-download-tracker.vibelock.workers.dev/ai
+- MCP catalog: https://aziel-runtime.vibelock.workers.dev/mcp
+
+POST /v1/pulse {values} and POST /v1/obfuscate-preview {seed,width,height} (noise recipe, not a virtual camera). Desktop `tether` stays local. iOS FaceTime cannot pick a third-party cam. Default obfuscation, not plaintext. Pulse fail → halt/noise, never a plaintext claim.
+
+**ChatGPT Actions:** GPT Editor → Actions → Import from URL → `https://veillock-download-tracker.vibelock.workers.dev/openapi.json` (no auth).
+
+**Grok / xAI tools:** add an HTTP/OpenAPI tool pointing at `https://veillock-download-tracker.vibelock.workers.dev/openapi.json`.
+
+**Venice HTTP tools:** add an HTTP tool with method, URL, and JSON body from that spec. Start with GET `https://veillock-download-tracker.vibelock.workers.dev/v1/health`.
+
+```bash
+curl -sS -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/pulse \
+  -H 'content-type: application/json' \
+  -d '{"values":[0.2,0.3,0.25]}'
+```
+
+GET `/download` still serves the gzip tarball and is counted.
+
+
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
