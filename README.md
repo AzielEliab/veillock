@@ -25,6 +25,8 @@ veillock ui
 
 Open http://127.0.0.1:8761 (loopback only). No CDN, no telemetry.
 
+Counted download: [https://veillock-download-tracker.vibelock.workers.dev/](https://veillock-download-tracker.vibelock.workers.dev/)
+
 ## Tether
 
 Pipe **your** camera (or screen) through VeilLock into Zoom, FaceTime (Mac),
