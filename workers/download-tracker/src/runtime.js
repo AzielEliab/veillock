@@ -75,6 +75,8 @@ function aiHowTo(base) {
 }
 
 const PRODUCT = "veillock";
+const SKILL_MARKDOWN = "---\nname: VeilLock\ndescription: Use when calling VeilLock hosted /v1 or installing the local package. Author Aziel Eliab.\n---\n\n# VeilLock\n\nLive-stream encryption of visual output before it reaches any external display. Not FaceTime/Zoom intercept. Not call intercept. Author: Aziel Eliab.\n\n**THIS IS:** live-stream encryption of visual output, UI rendering, and screen-level data streams before they reach any external display.\n\n**THIS IS NOT:** FaceTime/Zoom intercept, call intercept, a VPN, or a claim that network packets are captured.\n\nAuthor: **Aziel Eliab**. Forks are welcome and always allowed. Apache-2.0.\n\nAlways send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent.\n\n## Call these URLs\n\n- Worker OpenAPI: https://veillock-download-tracker.vibelock.workers.dev/openapi.json\n- Catalog OpenAPI: https://aziel-runtime.vibelock.workers.dev/openapi.json\n- MCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`\n- Live skill (this markdown): `GET https://veillock-download-tracker.vibelock.workers.dev/v1/skill`\n\nOps (do **not** increment downloads or views):\n\n| Method | Path | What |\n|--------|------|------|\n| GET | `/v1/health` | Liveness. Does not increment downloads. |\n| GET | `/v1/skill` | This markdown. Does not increment downloads. |\n| POST | `/v1/pulse` | Runtime key-state pulse. Not call intercept. |\n| POST | `/v1/obfuscate-preview` | Preview obfuscation. Not FaceTime/Zoom intercept. |\n\nGrok: import OpenAPI as a custom tool. ChatGPT: GPT Actions. Venice: HTTP tools.\n\n## Example\n\n```bash\ncurl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/health\ncurl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/skill\ncurl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/pulse \\\n  -H 'content-type: application/json' \\\n  -d '{}'\n```\n\n## Local (after one-click install)\n\n```bash\ncurl -fsSL https://veillock-download-tracker.vibelock.workers.dev/install.sh | bash\nveillock ui\n```\n\nThen open http://127.0.0.1:8761 (loopback only).\n\nDOI: https://doi.org/10.5281/zenodo.21431659  \nRecord: https://zenodo.org/records/21431659  \n\nCounted download (gzip HTTP 200, no 302): https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.1.0.tar.gz\nGitHub: https://github.com/AzielEliab/veillock\n";
+
 const VERSION = "0.1.0";
 const BASE = "https://veillock-download-tracker.vibelock.workers.dev";
 const MOTTO = "Render to encrypt to decode locally to display.";
@@ -202,6 +204,19 @@ export async function handleRuntime(request, url, env) {
       virtual_camera: false, plaintext: false, ios_facetime: IOS_FACETIME, tether: "local",
     });
   }
+
+  if (path === "/v1/skill" && request.method === "GET") {
+    return new Response(SKILL_MARKDOWN, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "private, no-store",
+        "X-KV-Increment": "false",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  }
+
   if (path === "/openapi.json" && request.method === "GET") return runtimeJson(openapiDoc());
   if (path === "/ai" && request.method === "GET") {
     return runtimeJson({
