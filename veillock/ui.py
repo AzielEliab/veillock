@@ -79,6 +79,10 @@ PAGE = r"""<!DOCTYPE html>
     <p class="motto">Render → encrypt → decode locally → display.</p>
     <span class="local">localhost · 127.0.0.1 · key shown once</span>
   </header>
+  <aside class="card" role="note" id="honest-banner">
+    <h2>Honest scope</h2>
+    <p class="help"><strong>YOUR camera/screen only. Not a call interceptor.</strong> VeilLock does not inject into FaceTime, Zoom, Meet, Teams, or Skype. The call app must choose the virtual camera named VeilLock. iPhone FaceTime cannot select a third-party virtual camera.</p>
+  </aside>
   <section class="card">
     <h2>Seal synthetic frames</h2>
     <p class="help">Generates a tiny RGB stack here, encrypts it, and shows ciphertext as noise against the decrypted preview. The session key is printed once and not stored.</p>
@@ -126,6 +130,16 @@ PAGE = r"""<!DOCTYPE html>
     <p class="help" id="tether-status">Stopped. Default mode is obfuscation.</p>
     <h2>App instructions</h2>
     <pre class="apps" id="apps-help">__APPS__</pre>
+  </section>
+  <section class="card" id="json-io">
+    <h2>Import / Export JSON</h2>
+    <p class="help">Import a JSON file of session settings (mode, tether source). Export JSON saves settings plus last seal metadata (not the session key — that is shown once and not stored). Local only.</p>
+    <input id="import-json" type="file" accept="application/json,.json">
+    <p style="margin-top:0.75rem">
+      <button class="primary" id="import-json-btn" type="button">Import JSON file</button>
+      <button class="ghost" id="export-json-btn" type="button">Export JSON</button>
+    </p>
+    <p class="help" id="json-status"></p>
   </section>
   <p class="err" id="err" hidden></p>
   <footer>VeilLock __VERSION__ · Apache-2.0 · forks welcome · <code>veillock ui</code></footer>
@@ -209,6 +223,46 @@ PAGE = r"""<!DOCTYPE html>
       $("err").textContent = String(e.message || e);
     }
   };
+
+  let lastExport = {product:"veillock", author:"Aziel Eliab"};
+  function collectVeil(){
+    return {
+      product: "veillock",
+      author: "Aziel Eliab",
+      mode: $("mode").value,
+      "tether-source": $("tether-source").value,
+      "tether-mode": $("tether-mode").value,
+      "tether-trusted": $("tether-trusted").checked,
+      last: lastExport.last || null,
+    };
+  }
+  $("import-json-btn").onclick = () => $("import-json").click();
+  $("import-json").onchange = () => {
+    const f = $("import-json").files && $("import-json").files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const obj = JSON.parse(String(r.result || "{}"));
+        if (obj.mode) $("mode").value = obj.mode;
+        if (obj["tether-source"]) $("tether-source").value = obj["tether-source"];
+        if (obj["tether-mode"]) $("tether-mode").value = obj["tether-mode"];
+        if (typeof obj["tether-trusted"] === "boolean") $("tether-trusted").checked = obj["tether-trusted"];
+        $("json-status").textContent = "Imported " + f.name;
+      } catch (e) { $("json-status").textContent = "Invalid JSON"; }
+    };
+    r.readAsText(f);
+  };
+  $("export-json-btn").onclick = () => {
+    const blob = new Blob([JSON.stringify(collectVeil(), null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "veillock-session.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 800);
+    $("json-status").textContent = "Exported JSON (session key is not written).";
+  };
+
   $("copy-apps").onclick = async () => {
     const text = $("apps-help").textContent;
     try {

@@ -43,3 +43,11 @@ def test_ui_get_root_contains_tether() -> None:
         httpd.shutdown()
         httpd.server_close()
         thread.join(timeout=2)
+
+def test_ui_has_import_export_json() -> None:
+    from veillock.ui import PAGE
+    assert "Import JSON file" in PAGE
+    assert "Export JSON" in PAGE
+    assert 'type="file"' in PAGE
+    assert "YOUR camera/screen only" in PAGE
+    assert "Not a call interceptor" in PAGE
