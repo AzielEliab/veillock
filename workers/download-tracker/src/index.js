@@ -279,7 +279,32 @@ async function indexHtml(env) {
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VeilLock downloads</title>
+<title>VeilLock — Aziel Eliab</title>
+<meta name="description" content="Live-stream encryption of visual output before it reaches any external display, by Aziel Eliab.">
+<meta name="author" content="Aziel Eliab">
+<link rel="canonical" href="https://veillock-download-tracker.vibelock.workers.dev/">
+<meta property="og:title" content="VeilLock — Aziel Eliab">
+<meta property="og:description" content="Live-stream encryption of visual output before it reaches any external display, by Aziel Eliab.">
+<meta property="og:url" content="https://veillock-download-tracker.vibelock.workers.dev/">
+<meta property="og:type" content="website">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "VeilLock",
+  "author": {
+    "@type": "Person",
+    "name": "Aziel Eliab"
+  },
+  "codeRepository": "https://github.com/AzielEliab/veillock",
+  "downloadUrl": "https://veillock-download-tracker.vibelock.workers.dev/download",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
+  "url": "https://veillock-download-tracker.vibelock.workers.dev/",
+  "description": "Live-stream encryption of visual output before it reaches any external display, by Aziel Eliab.",
+  "identifier": "https://doi.org/10.5281/zenodo.21431659"
+}
+</script>
+<!-- gitbaby-seo -->
 <style>
   :root { color-scheme: dark; }
   body { font: 16px/1.45 system-ui, sans-serif; max-width: 42rem; margin: 3rem auto; padding: 0 1.25rem 4rem; background: #0e1014; color: #e8eaef; }
@@ -302,6 +327,11 @@ async function indexHtml(env) {
   .banner { border: 1px solid #5c4a1a; background: #241c0d; color: #f0d78c; padding: .85rem 1rem; border-radius: 8px; margin: 0 0 1.2rem; font-size: .92rem; }
   pre { background: #0e1014; padding: .75rem .9rem; overflow: auto; border-radius: 8px; font-size: .82rem; }
   code { font-size: .88rem; }
+
+  .cite { margin-top: 1.4rem; padding-top: 1rem; border-top: 1px solid #2a3140; }
+  .cite h2 { font-size: 1.05rem; margin: 0 0 .4rem; }
+  .cite p { color: #c5ccd8; font-size: .95rem; }
+  .cite a { color: #c9d4ff; }
 </style>
 <body>
   <h1>VeilLock</h1>
@@ -352,6 +382,13 @@ async function indexHtml(env) {
     <h2>Per repo / branch / fork</h2>
     <ul>${breakdown}</ul>
   </div>
+
+<section class="cite" id="cite">
+  <h2>How to cite</h2>
+  <p>Aziel Eliab. VeilLock. https://github.com/AzielEliab/veillock. https://veillock-download-tracker.vibelock.workers.dev. https://doi.org/10.5281/zenodo.21431659.</p>
+  <p><a href="https://aziel-runtime.vibelock.workers.dev/">Catalog</a> · <a href="https://github.com/AzielEliab/veillock">GitHub</a> · <a href="https://veillock-download-tracker.vibelock.workers.dev/download">Download</a> · <a href="https://veillock-download-tracker.vibelock.workers.dev/cite.json">cite.json</a></p>
+</section>
+<!-- /gitbaby-seo -->
 </body>
 </html>`;
 }
@@ -436,6 +473,29 @@ export default {
       return serveAsset(request, env, asset, { head: request.method === "HEAD" });
     }
 
+
+    // gitbaby-seo-routes
+    if ((url.pathname === "/robots.txt" || url.pathname === "/robots.txt/") && request.method === "GET") {
+      const body = "User-agent: *\nAllow: /\nSitemap: " + HOST + "/sitemap.xml\n";
+      return new Response(body, {
+        status: 200,
+        headers: { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders() },
+      });
+    }
+    if ((url.pathname === "/sitemap.xml" || url.pathname === "/sitemap.xml/") && request.method === "GET") {
+      const locs = [HOST + "/", HOST + "/download", HOST + "/install.sh", HOST + "/v1/skill", HOST + "/openapi.json", GITHUB_REPO];
+      const xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + locs.map((u) => "  <url><loc>" + u + "</loc></url>").join("\n")
+        + "\n</urlset>\n";
+      return new Response(xml, {
+        status: 200,
+        headers: { "Content-Type": "application/xml; charset=utf-8", ...corsHeaders() },
+      });
+    }
+    if ((url.pathname === "/cite.json" || url.pathname === "/cite.json/") && request.method === "GET") {
+      return json({"author": "Aziel Eliab", "title": "VeilLock", "github": "https://github.com/AzielEliab/veillock", "download": "https://veillock-download-tracker.vibelock.workers.dev/download", "doi": "10.5281/zenodo.21431659", "license": "Apache-2.0", "catalog": "https://aziel-runtime.vibelock.workers.dev/"});
+    }
+    // /gitbaby-seo-routes
     return json({ error: "not found" }, 404);
   },
 };

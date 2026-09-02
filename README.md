@@ -297,6 +297,17 @@ curl -sS -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/pulse
 GET `/download` still serves the gzip tarball and is counted.
 
 
+## Cite this
+
+Aziel Eliab. VeilLock. https://github.com/AzielEliab/veillock. https://veillock-download-tracker.vibelock.workers.dev. https://doi.org/10.5281/zenodo.21431659.
+
+- Catalog: https://aziel-runtime.vibelock.workers.dev/
+- Worker homepage: https://veillock-download-tracker.vibelock.workers.dev/
+- Counted download (gzip HTTP 200, no 302): https://veillock-download-tracker.vibelock.workers.dev/download
+- GitHub: https://github.com/AzielEliab/veillock
+- Citation JSON: https://veillock-download-tracker.vibelock.workers.dev/cite.json
+- DOI: https://doi.org/10.5281/zenodo.21431659
+
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
