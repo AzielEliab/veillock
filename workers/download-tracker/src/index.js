@@ -169,27 +169,6 @@ async function collectStats(env) {
     note: "Forks identified by GitHub owner/repo. Key layout: project|owner|repo|branch|fork",
   };
 }
-async function serveAsset(request, env, asset, { head = false } = {}) {
-  if (!env.ASSETS) {
-    return json({ error: "assets binding missing" }, 500);
-  }
-  const assetUrl = new URL("/" + asset, request.url);
-  const assetRes = await env.ASSETS.fetch(new Request(assetUrl, { method: "GET" }));
-  if (!assetRes.ok) {
-    return json({ error: "asset not hosted", asset, status: assetRes.status }, 404);
-  }
-  const headers = new Headers();
-  headers.set("Content-Type", "application/gzip");
-  headers.set("Content-Disposition", 'attachment; filename="' + asset.replaceAll('"', "") + '"');
-  headers.set("Cache-Control", "private, no-store");
-  const len = assetRes.headers.get("Content-Length");
-  if (len) headers.set("Content-Length", len);
-  for (const [k, v] of Object.entries(corsHeaders())) headers.set(k, v);
-  if (head) {
-    return new Response(null, { status: 200, headers });
-  }
-  return new Response(assetRes.body, { status: 200, headers });
-}
 
 
 
