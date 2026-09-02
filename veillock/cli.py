@@ -80,6 +80,8 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Hex receiver secret (unwraps the broadcast package key).",
     )
 
+    p_doc = sub.add_parser("doctor", help="Self-check: pulse, loopback, numpy. No network.")
+    p_doc.add_argument("--json", action="store_true", dest="as_json", help="Print doctor results as JSON.")
     sub.add_parser("version", help="Print the VeilLock version and exit.")
 
     p_ui = sub.add_parser("ui", aliases=["serve"], help="Run the localhost UI (127.0.0.1).")
@@ -152,6 +154,11 @@ def _load_frames(path: str) -> np.ndarray:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+
+    if args.cmd == "doctor":
+        from veillock.doctor import doctor_cli
+
+        return doctor_cli(as_json=args.as_json)
 
     if args.cmd == "version":
         sys.stdout.write(f"veillock {__version__}\n")
