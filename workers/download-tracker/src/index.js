@@ -169,12 +169,7 @@ async function collectStats(env) {
     note: "Forks identified by GitHub owner/repo. Key layout: project|owner|repo|branch|fork",
   };
 }
-
-
-
-
-
- = {}) {
+async function serveAsset(request, env, asset, { head = false } = {}) {
   if (!env.ASSETS) {
     return json({ error: "assets binding missing" }, 500);
   }
