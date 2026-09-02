@@ -158,19 +158,27 @@ async function collectStats(env) {
     breakdown.push({ project, owner, repo, branch, fork: forkFlag, count: n });
   }
 
+  const views = parseInt((await env.DOWNLOADS.get(viewsKey())) || "0", 10) || 0;
   return {
     project: PROJECT,
     total,
+    views,
+    downloads: total,
     by_repo,
     by_branch,
     by_fork,
     breakdown,
     github: (await githubStats(env)),
-    note: "Forks identified by GitHub owner/repo. Key layout: project|owner|repo|branch|fork",
+    note: "Forks identified by GitHub owner/repo. Key layout: project|owner|repo|branch|fork. Views are separate from downloads. /v1 does not increment.",
   };
 }
 
 
+
+
+function totalKey() {
+  return PROJECT + "|__total__";
+}
 
 function viewsKey() {
   return PROJECT + "|__views__";
