@@ -23,6 +23,9 @@ const GITHUB_REPO = "https://github.com/AzielEliab/veillock";
 
 const GITHUB_RELEASES = "https://github.com/AzielEliab/veillock/releases";
 const GITHUB_LATEST = "https://github.com/AzielEliab/veillock/releases/latest";
+const INSTALL_LINE = "curl -fsSL https://veillock-download-tracker.vibelock.workers.dev/install.sh | bash";
+const DOI = "https://doi.org/10.5281/zenodo.21431659";
+const ZENODO = "https://zenodo.org/records/21431659";
 
 function corsHeaders() {
   return {
@@ -140,6 +143,7 @@ async function collectStats(env) {
 
   for (const k of keys) {
     const name = k.name;
+    if (name === viewsKey() || name === totalKey() || name === githubCacheKey()) continue;
     const n = parseInt((await env.DOWNLOADS.get(name)) || "0", 10);
     if (!Number.isFinite(n) || n <= 0) continue;
     const parts = name.split("|");
@@ -161,13 +165,45 @@ async function collectStats(env) {
     by_branch,
     by_fork,
     breakdown,
+    github: (await githubStats(env)),
     note: "Forks identified by GitHub owner/repo. Key layout: project|owner|repo|branch|fork",
   };
 }
 
 
+
+
+
+ = {}) {
+  if (!env.ASSETS) {
+    return json({ error: "assets binding missing" }, 500);
+  }
+  const assetUrl = new URL("/" + asset, request.url);
+  const assetRes = await env.ASSETS.fetch(new Request(assetUrl, { method: "GET" }));
+  if (!assetRes.ok) {
+    return json({ error: "asset not hosted", asset, status: assetRes.status }, 404);
+  }
+  const headers = new Headers();
+  headers.set("Content-Type", "application/gzip");
+  headers.set("Content-Disposition", 'attachment; filename="' + asset.replaceAll('"', "") + '"');
+  headers.set("Cache-Control", "private, no-store");
+  const len = assetRes.headers.get("Content-Length");
+  if (len) headers.set("Content-Length", len);
+  for (const [k, v] of Object.entries(corsHeaders())) headers.set(k, v);
+  if (head) {
+    return new Response(null, { status: 200, headers });
+  }
+  return new Response(assetRes.body, { status: 200, headers });
+}
+
+
+
 function viewsKey() {
   return PROJECT + "|__views__";
+}
+
+function githubCacheKey() {
+  return PROJECT + "|__github__";
 }
 
 async function incrementViews(env) {
@@ -176,32 +212,51 @@ async function incrementViews(env) {
   return n;
 }
 
+async function githubStats(env) {
+  const cached = await env.DOWNLOADS.get(githubCacheKey());
+  if (cached) {
+    try {
+      const obj = JSON.parse(cached);
+      if (obj && obj.fetched_at && Date.now() - obj.fetched_at < 5 * 60 * 1000) {
+        return obj;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  const headers = { "User-Agent": "Mozilla/5.0 VeilLock-download-tracker", Accept: "application/vnd.github+json" };
+  let stars = 0;
+  let forks = 0;
+  let watchers = 0;
+  let release_download_count = 0;
+  try {
+    const repoRes = await fetch("https://api.github.com/repos/AzielEliab/veillock", { headers });
+    if (repoRes.ok) {
+      const repo = await repoRes.json();
+      stars = Number(repo.stargazers_count) || 0;
+      forks = Number(repo.forks_count) || 0;
+      watchers = Number(repo.subscribers_count != null ? repo.subscribers_count : repo.watchers_count) || 0;
+    }
+    const relRes = await fetch("https://api.github.com/repos/AzielEliab/veillock/releases/latest", { headers });
+    if (relRes.ok) {
+      const rel = await relRes.json();
+      const assets = Array.isArray(rel.assets) ? rel.assets : [];
+      release_download_count = assets.reduce((s, a) => s + (Number(a.download_count) || 0), 0);
+    }
+  } catch {
+    /* public API; empty is fine */
+  }
+  const out = { stars, forks, watchers, release_download_count, fetched_at: Date.now() };
+  try {
+    await env.DOWNLOADS.put(githubCacheKey(), JSON.stringify(out));
+  } catch {
+    /* ignore */
+  }
+  return out;
+}
+
 function installScript() {
-  return `#!/usr/bin/env bash
-# VeilLock one-click install. Counted download via this Worker.
-set -euo pipefail
-HOST="${HOST}"
-ASSET="${DEFAULT_ASSET}"
-WORKDIR="\${VEILLOCK_HOME:-\$HOME/veillock}"
-mkdir -p "\$WORKDIR"
-cd "\$WORKDIR"
-echo "Downloading counted tarball from \${HOST}/download (User-Agent Mozilla/5.0)…"
-curl -fsSL -A 'Mozilla/5.0' "\${HOST}/download?asset=\${ASSET}" -o "\${ASSET}"
-tar -xzf "\${ASSET}"
-DIR="\$(find . -maxdepth 1 -type d -name 'veillock-*' | head -n 1)"
-if [ -n "\${DIR}" ]; then
-  cd "\${DIR}"
-fi
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install -U pip
-python -m pip install -e .
-echo
-echo "Installed VeilLock."
-echo "Run:  veillock ui"
-echo "Then open http://127.0.0.1:8761  (loopback only)"
-echo "Author: Aziel Eliab."
-`;
+  return `#!/usr/bin/env bash\n# VeilLock one-click install. Counted download via this Worker.\nset -euo pipefail\nHOST="${HOST}"\nASSET="${DEFAULT_ASSET}"\nWORKDIR="\${VEILLOCK_HOME:-\$HOME/veillock}"\nmkdir -p "\$WORKDIR"\ncd "\$WORKDIR"\necho "Downloading counted tarball from \${HOST}/download (User-Agent Mozilla/5.0)…"\ncurl -fsSL -A 'Mozilla/5.0' "\${HOST}/download?asset=\${ASSET}" -o "\${ASSET}"\ntar -xzf "\${ASSET}"\nDIR=\"\$(find . -maxdepth 1 -type d -name 'veillock-*' | head -n 1)\"\nif [ -n "\${DIR}" ]; then\n  cd "\${DIR}"\nfi\npython3 -m venv .venv\n. .venv/bin/activate\npython -m pip install -U pip\npython -m pip install -e .\necho\necho "Installed VeilLock."\necho "Run:  veillock ui"\necho "Then open http://127.0.0.1:8761  (loopback only)"\necho "Author: Aziel Eliab."\n`;
 }
 
 async function serveAsset(request, env, asset, { head = false } = {}) {
