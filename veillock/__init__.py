@@ -1,24 +1,27 @@
-"""VeilLock: live-stream encryption of visual output before display.
+"""VeilLock: consent-gated camera protection via AZ-OS.
 
-July 2026 whitepaper implementation by Aziel Eliab.
+Author: Aziel Eliab.
 
 Pipeline: render → encrypt → decode locally → display.
-Without the correct runtime key state, the display is undecodable noise.
+Camera and video are naturally veiled unless you turn obfuscation off
+or accept a call through AZ-OS.
 
 Forks are welcome and always allowed.
 """
 
 from __future__ import annotations
 
+from veillock.azos import AzosHook
 from veillock.engine import EncryptedFrame, EncryptedStream, VeilLockSession
 from veillock.frames import FrameSource
 from veillock.phoenix import PhoenixLoop
 from veillock.pulse import AlwaysPass, HaltedError, PhoenixError, PulseCheck
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Aziel Eliab"
 __all__ = [
     "AlwaysPass",
+    "AzosHook",
     "EncryptedFrame",
     "EncryptedStream",
     "FrameSource",

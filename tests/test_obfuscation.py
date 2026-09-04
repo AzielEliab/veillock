@@ -1,10 +1,11 @@
-"""Obfuscation mode shows synthetic UI noise, never plaintext."""
+"""Obfuscation: synthetic UI noise and natural camera veil, never plaintext."""
 
 from __future__ import annotations
 
 import numpy as np
 
 from veillock.engine import VeilLockSession
+from veillock.modes import natural_camera_veil, obfuscate_camera_frame
 from tests.helpers import entropy_bits
 
 
@@ -34,3 +35,17 @@ def test_obfuscation_decoy_is_not_plaintext(frames_16: np.ndarray, session_key: 
     )
     out = dec.decrypt_frames(stream)
     np.testing.assert_array_equal(out, frames_16)
+
+
+def test_natural_camera_veil_is_not_plaintext(frames_16: np.ndarray) -> None:
+    rng = np.random.default_rng(4)
+    plain = frames_16[0]
+    veil = obfuscate_camera_frame(plain, rng, tick=3)
+    assert veil.shape == plain.shape
+    assert veil.dtype == np.uint8
+    assert not np.array_equal(veil, plain)
+    assert entropy_bits(veil.tobytes()) < 6.5
+    again = natural_camera_veil(plain.shape, np.random.default_rng(4), luminance_hint=float(plain.mean()), tick=3)
+    # Same seed + tick is structured and still not the camera.
+    assert again.shape == plain.shape
+    assert not np.array_equal(again, plain)

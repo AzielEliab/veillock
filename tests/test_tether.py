@@ -12,6 +12,7 @@ from veillock.engine import VeilLockSession
 from veillock.frames import FrameSource
 from veillock.pulse import HaltedError
 from veillock.sources import CameraSource, InstallError, ScreenSource, _require_cv2
+from veillock.azos import AzosHook
 from veillock.tether import (
     DEFAULT_MODE,
     DEVICE_NAME,
@@ -85,6 +86,8 @@ def test_default_mode_is_obfuscation() -> None:
     assert args.source == "camera"
     assert args.device == 0
     assert args.trusted is False
+    assert args.obfuscation_off is False
+    assert args.azos_accept is False
     assert args.width == 640
     assert args.height == 480
     assert args.fps == 15
@@ -199,7 +202,9 @@ def test_obfuscation_feed_is_not_plaintext(frames_16: np.ndarray, session_key: b
     assert not np.array_equal(cam.sent[0], plain)
 
 
-def test_private_without_trusted_is_black(frames_16: np.ndarray, session_key: bytes) -> None:
+def test_private_default_is_natural_veil_not_plaintext(
+    frames_16: np.ndarray, session_key: bytes
+) -> None:
     plain = frames_16[0]
     src = FrameSource(plain[None, ...])
     cam = RecordingCam()
@@ -209,12 +214,69 @@ def test_private_without_trusted_is_black(frames_16: np.ndarray, session_key: by
         max_frames=1,
         mode="private",
         trusted=False,
+        source="camera",
         session_key=session_key,
         rotation_interval=60,
+        rng=np.random.default_rng(5),
     )
     run_tether(cfg, frame_source=src, virtual_cam=cam, log=io.StringIO())
-    assert np.all(cam.sent[0] == 0)
+    assert cam.sent[0].shape == plain.shape
     assert not np.array_equal(cam.sent[0], plain)
+
+
+def test_user_off_sends_trusted_decode(frames_16: np.ndarray, session_key: bytes) -> None:
+    plain = frames_16[0]
+    src = FrameSource(plain[None, ...])
+    cam = RecordingCam()
+    cfg = TetherConfig(
+        width=16,
+        height=16,
+        max_frames=1,
+        mode="obfuscation",
+        obfuscation_off=True,
+        source="camera",
+        session_key=session_key,
+        rotation_interval=60,
+        rng=np.random.default_rng(9),
+    )
+    run_tether(cfg, frame_source=src, virtual_cam=cam, log=io.StringIO())
+    np.testing.assert_array_equal(cam.sent[0], plain)
+
+
+def test_azos_accept_sends_trusted_decode(frames_16: np.ndarray, session_key: bytes) -> None:
+    plain = frames_16[0]
+    src = FrameSource(plain[None, ...])
+    cam = RecordingCam()
+    cfg = TetherConfig(
+        width=16,
+        height=16,
+        max_frames=1,
+        mode="obfuscation",
+        azos_accept=True,
+        actor="Aziel Eliab",
+        source="camera",
+        session_key=session_key,
+        rotation_interval=60,
+        rng=np.random.default_rng(10),
+    )
+    run_tether(cfg, frame_source=src, virtual_cam=cam, log=io.StringIO())
+    np.testing.assert_array_equal(cam.sent[0], plain)
+
+
+def test_emit_respects_shared_hook(frames_16: np.ndarray, session_key: bytes) -> None:
+    plain = frames_16[0]
+    sess = VeilLockSession(
+        session_key=session_key,
+        rotation_interval=60,
+        mode="obfuscation",
+        rng=np.random.default_rng(2),
+    )
+    hook = AzosHook()
+    veiled = emit_public_frame(sess, plain, hook=hook, source="camera", rng=np.random.default_rng(2))
+    assert not np.array_equal(veiled, plain)
+    hook.accept_call(actor="user")
+    lifted = emit_public_frame(sess, frames_16[1], hook=hook, source="camera", rng=np.random.default_rng(2))
+    np.testing.assert_array_equal(lifted, frames_16[1])
 
 
 def test_cli_apps_exit_0(capsys) -> None:

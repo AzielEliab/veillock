@@ -1,14 +1,16 @@
 # VeilLock
 
-Live-stream encryption of visual output, UI rendering, and screen-level
-data streams **before** they reach any external display.
+Consent-gated camera protection via **AZ-OS**. Your camera and video
+stay under a natural privacy veil unless **you** turn obfuscation off
+or **you** accept a call through AZ-OS.
 
 **Author:** Aziel Eliab
-**Date:** July 2026
+**Date:** September 2026
 **License:** [Apache-2.0](LICENSE)
+**Version:** 0.2.0
 
 > Render → encrypt → decode locally → display.
-> Without the correct runtime key state, the display is undecodable noise.
+> Camera and video are veiled by default. You control the lift.
 
 See the spec: [docs/whitepaper.md](docs/whitepaper.md).
 How to contribute: [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -38,7 +40,7 @@ The Worker serves the gzip itself (HTTP 200, no 302 to GitHub).
 # → [https://veillock-download-tracker.vibelock.workers.dev/](https://veillock-download-tracker.vibelock.workers.dev/) ←
 
 Direct tarball (also counted):
-[veillock-0.1.0.tar.gz](https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.1.0.tar.gz)
+[veillock-0.2.0.tar.gz](https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.2.0.tar.gz)
 
 - Live count JSON: [https://veillock-download-tracker.vibelock.workers.dev/stats](https://veillock-download-tracker.vibelock.workers.dev/stats)
 - OpenAPI: [https://veillock-download-tracker.vibelock.workers.dev/openapi.json](https://veillock-download-tracker.vibelock.workers.dev/openapi.json)
@@ -64,11 +66,27 @@ Open http://127.0.0.1:8761 (loopback only). No CDN, no telemetry.
 
 Counted download: [https://veillock-download-tracker.vibelock.workers.dev/](https://veillock-download-tracker.vibelock.workers.dev/)
 
+## AZ-OS hook
+
+VeilLock hooks **AZ-OS** as the consent surface for the camera and video
+feed.
+
+- **Default:** natural camera/video veil (live-looking, not plaintext).
+- **You turn obfuscation off:** the veil lifts.
+- **You accept a call through AZ-OS:** the veil lifts for that session.
+- **Call ends:** the veil returns unless you left obfuscation off.
+
+You control both paths. Hosted AZ-OS halt is a token, not killing this
+computer. Local UI: **Accept call through AZ-OS** / **End call (re-veil)**
+and the obfuscation checkbox. CLI: `veillock azos`,
+`veillock tether --azos-accept --actor "your name"`,
+`veillock tether --obfuscation-off`.
+
 ## Tether
 
 Pipe **your** camera (or screen) through VeilLock into Zoom, FaceTime (Mac),
 Skype, Meet, or Teams as a virtual camera named **VeilLock**. The call app
-chooses that camera. VeilLock does not MITM the call.
+chooses that camera. The public feed is veiled until you lift it.
 
 ```bash
 pip install -e ".[tether]"
@@ -90,15 +108,16 @@ Then pick **VeilLock** as the camera:
 `veillock apps` prints the same steps. Linux needs v4l2loopback labeled
 `VeilLock` (see that command). Default size is 640×480 @ 15 fps.
 
-Default `--mode obfuscation`: people on the call see synthetic UI noise, not
-your plaintext camera. Private mode sends black/decoy unless you pass
-`--trusted` (trusted local decode — still your choice). PulseCheck must PASS
-or the feed becomes obfuscation noise (`HaltedError` / Phoenix) — never
-plaintext.
+Default public feed: a natural camera/video veil, not your plaintext
+camera. PulseCheck must PASS or the feed stays veiled (`HaltedError` /
+Phoenix) — never plaintext.
 
-**Safety:** YOUR camera/screen only. Not a call interceptor, not malware, not
-a screen scraper of other apps' private buffers. Do not MITM Zoom/FaceTime.
-The call app **chooses** the virtual camera named VeilLock.
+Lift the veil (your choice):
+
+```bash
+veillock tether --obfuscation-off
+veillock tether --azos-accept --actor "your name"
+```
 
 Counted download: [https://veillock-download-tracker.vibelock.workers.dev/](https://veillock-download-tracker.vibelock.workers.dev/)
 
@@ -117,7 +136,7 @@ The big button on that page is the download. The number next to it is
 anything else. Clicking it increments the counter. Nobody reports
 anything. Forks that use the same link are counted too.
 
-Direct tarball (also counted): [veillock-0.1.0.tar.gz](https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.1.0.tar.gz)
+Direct tarball (also counted): [veillock-0.2.0.tar.gz](https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.2.0.tar.gz)
 
 - Live count JSON: [https://veillock-download-tracker.vibelock.workers.dev/count](https://veillock-download-tracker.vibelock.workers.dev/count)
 - Stats: [https://veillock-download-tracker.vibelock.workers.dev/stats](https://veillock-download-tracker.vibelock.workers.dev/stats)
@@ -145,7 +164,7 @@ Forks are welcome and always allowed.
 
 `veillock ui` serves a loopback dashboard at http://127.0.0.1:8761
 
-Binds to `127.0.0.1` only. Self-contained HTML (no CDN). Synthetic frames are sealed in-process; the session key is shown once. The **Tether** panel starts/stops the virtual camera and copies app instructions.
+Binds to `127.0.0.1` only. Self-contained HTML (no CDN). Synthetic frames are sealed in-process; the session key is shown once. The **Tether** panel starts/stops the virtual camera. The **AZ-OS hook** panel is your consent surface: obfuscation on by default, accept a call to lift the veil, end the call to re-veil.
 
 ## What it does
 
@@ -175,8 +194,8 @@ plaintext).
 Identifying metadata (window ids, application fingerprints, UI
 telemetry) is stripped before encrypt.
 
-This engine is not a screen scraper and not malware. It seals frames
-the caller already holds.
+The engine seals frames the caller already holds. Camera and video
+leave as a natural veil unless you lift it.
 
 The design target is &lt;1 ms/frame for small frames (numpy +
 cryptography). This README does not invent benchmark numbers.
@@ -195,7 +214,7 @@ pip install -e ".[dev]"
 From a release artifact:
 
 ```bash
-python -m pip install veillock-0.1.0.tar.gz
+python -m pip install veillock-0.2.0.tar.gz
 ```
 
 ## CLI
@@ -212,8 +231,11 @@ veillock decrypt --in cipher.npz --out frames.npy --key <hex>
 veillock decrypt --in cipher.npz --out frames.npy --receiver-secret <hex>
 
 veillock version
-veillock ui            # localhost UI on 127.0.0.1:8761 (Tether panel)
+veillock ui            # localhost UI on 127.0.0.1:8761 (Tether + AZ-OS)
+veillock azos          # consent-hook status
 veillock tether --source camera --mode obfuscation --device 0
+veillock tether --obfuscation-off
+veillock tether --azos-accept --actor "your name"
 veillock apps          # Zoom / Skype / FaceTime / Meet / Teams steps
 ```
 
@@ -257,12 +279,13 @@ python -m pytest -q
 Fixtures are synthetic. They cover roundtrip, wrong key, rotation
 forward-secrecy, PCI halt, Phoenix Loop, metadata scrubbing,
 obfuscation ≠ plaintext, ciphertext entropy, framebuffer zeroing,
-and the tether (mocked VideoCapture / pyvirtualcam; no camera).
+the tether (mocked VideoCapture / pyvirtualcam; no camera), the AZ-OS
+hook, and the natural camera veil.
 
 ## Layout
 
 ```
-veillock/           library (engine, crypto, frames, sources, tether, pulse, phoenix, metadata, modes, cli, ui)
+veillock/           library (engine, crypto, frames, sources, tether, azos, pulse, phoenix, metadata, modes, cli, ui)
 tests/              pytest, synthetic RGB
 docs/whitepaper.md  July 2026 spec
 examples/           encrypt a synthetic stack
@@ -280,7 +303,7 @@ Live HTTPS runtime on the download-tracker Worker (does **not** increment the do
 - How to wire tools: https://veillock-download-tracker.vibelock.workers.dev/ai
 - MCP catalog: https://aziel-runtime.vibelock.workers.dev/mcp
 
-POST /v1/pulse {values} and POST /v1/obfuscate-preview {seed,width,height} (noise recipe, not a virtual camera). Desktop `tether` stays local. iOS FaceTime cannot pick a third-party cam. Default obfuscation, not plaintext. Pulse fail → halt/noise, never a plaintext claim.
+POST /v1/pulse {values}, POST /v1/obfuscate-preview {seed,width,height,source}, POST /v1/consent, POST /v1/call-accept, POST /v1/azos-hook. Desktop `tether` stays local. iOS FaceTime cannot pick a third-party cam. Default natural camera/video veil. Lift only if you turn obfuscation off or accept a call through AZ-OS. Pulse fail → halt/noise, never a plaintext claim.
 
 **ChatGPT Actions:** GPT Editor → Actions → Import from URL → `https://veillock-download-tracker.vibelock.workers.dev/openapi.json` (no auth).
 

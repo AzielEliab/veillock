@@ -1,9 +1,9 @@
 # VeilLock
 
-**A live-stream encryption protocol for visual output**
+**Consent-gated camera protection via AZ-OS**
 
 **Author:** Aziel Eliab
-**Date:** July 2026
+**Date:** September 2026
 **License:** Apache-2.0
 
 ---
@@ -22,8 +22,9 @@ Captured ciphertext is not a valid image. The engine framebuffer does not
 retain plaintext after encryption returns.
 
 This document is the specification implemented by the `veillock` Python
-package. It is an encryption engine. It is not a screen scraper, not
-malware, and not an exploit toolkit.
+package. Camera and video are naturally veiled unless the user turns
+obfuscation off or accepts a call through AZ-OS. The user controls both
+paths.
 
 Forks are welcome and always allowed.
 
@@ -203,16 +204,35 @@ AES-GCM sealed for an authorized decoder.
 | Phoenix Loop | `veillock.phoenix.PhoenixLoop` |
 | Scrub | `veillock.metadata.scrub_metadata` |
 | Modes | `veillock.modes.Mode` |
-| CLI | `veillock encrypt` / `decrypt` / `version` |
+| AZ-OS hook | `veillock.azos.AzosHook` |
+| Natural camera veil | `veillock.modes.natural_camera_veil` |
+| CLI | `veillock encrypt` / `decrypt` / `tether` / `azos` / `version` |
 
 Tests use synthetic 16×16 and 64×64 RGB frames. No hardware is required.
 
 ---
 
+## AZ-OS hook
+
+VeilLock's identity is consent-gated camera protection via AZ-OS.
+
+1. The public camera and video feed is a **natural privacy veil** by
+   default (live-looking wash and grain; spatial pixels from the real
+   frame are not copied).
+2. The user may turn obfuscation **off**. That lifts the veil.
+3. The user may **accept a call through AZ-OS**. That lifts the veil
+   for the accepted session. Ending the call re-veils.
+4. PulseCheck failure still refuses plaintext even when the veil is
+   lifted.
+
+The hook is a local overlay receipt. Hosted AZ-OS halt is a token, not
+killing the caller OS. Hosted `/v1/call-accept` is a consent receipt,
+not a placed telephone call.
+
 ## What this is not
 
-VeilLock is the encryption engine described above. It does not implement
-malware, screen scrapers, credential theft, or exploits against other
-systems. Forks that add capture against unwitting users are outside this
-spec and outside the license grant’s intended use as a protective
-display path.
+VeilLock is the consent-gated camera path described above. It does not
+implement malware, credential theft, or exploits against other systems.
+Forks that add capture against unwitting users are outside this spec
+and outside the license grant’s intended use as a protective camera
+path. The user controls the veil.

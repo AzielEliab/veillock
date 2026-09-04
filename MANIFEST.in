@@ -1,0 +1,10 @@
+include LICENSE
+include README.md
+include SKILL.md
+include CONTRIBUTING.md
+include install.sh
+include docs/whitepaper.md
+include tests/*.py
+graft veillock
+global-exclude *.pyc
+global-exclude __pycache__

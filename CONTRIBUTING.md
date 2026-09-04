@@ -28,8 +28,9 @@ Python 3.10+, numpy, cryptography, pytest. No hardware. Fixtures in
    If you measure something, publish the machine, the frame size, and
    the method in the same breath as the number.
 3. **Do not implement malware, screen scrapers, or exploits.** VeilLock
-   is the encryption engine: frames the caller already holds, sealed
-   before display. Capture of another process’s screen is out of scope.
+   is consent-gated camera protection via AZ-OS: frames the caller
+   already holds, veiled by default. Capture of another process’s
+   screen is out of scope. Keep the user in control of the veil.
 4. **Keep the dependency list small.** numpy + cryptography in the core
    CLI. Optional dev extra is pytest. Optional tether extra is
    opencv-python-headless + pyvirtualcam (never add those to core).
@@ -45,7 +46,8 @@ Python 3.10+, numpy, cryptography, pytest. No hardware. Fixtures in
 - PulseCheck / HaltedError: `veillock/pulse.py`
 - Phoenix Loop: `veillock/phoenix.py`
 - Metadata scrub: `veillock/metadata.py`
-- Modes and decoy frames: `veillock/modes.py`
+- Modes, natural camera veil, decoy frames: `veillock/modes.py`
+- AZ-OS consent hook: `veillock/azos.py`
 - Camera / screen tether: `veillock/sources.py`, `veillock/tether.py`
 - New behavior needs a synthetic test that fails without the change.
   Tether tests mock VideoCapture and pyvirtualcam; no camera required.

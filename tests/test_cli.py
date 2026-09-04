@@ -129,6 +129,10 @@ def test_help_lists_ui_and_version() -> None:
     assert "version" in text
     assert "tether" in text
     assert "apps" in text
+    assert "azos" in text
+    tether_help = _build_parser()._subparsers._group_actions[0].choices["tether"].format_help()
+    assert "--obfuscation-off" in tether_help
+    assert "--azos-accept" in tether_help
     assert "encrypt" in text
     assert "decrypt" in text
     assert "127.0.0.1:8761" in text or "veillock ui" in text

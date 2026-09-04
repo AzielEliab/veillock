@@ -1,8 +1,7 @@
 # VeilLock — iPhone & Android
 
-Local-first Flutter client for VeilLock. Live camera preview, modes
-Private / Obfuscation / Broadcast, visual noise overlay. Offline. No
-analytics.
+Local-first Flutter client for VeilLock. Live camera preview with a
+consent-gated privacy veil (AZ-OS). Offline. No analytics.
 
 **This overlay is the mobile obfuscation surface.** It is **not**
 AES-GCM. Desktop VeilLock (Python) remains the AES-256-GCM engine.

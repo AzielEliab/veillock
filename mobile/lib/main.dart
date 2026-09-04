@@ -177,8 +177,9 @@ class _PreviewPageState extends State<PreviewPage> {
         return 'Private: preview dimmed, lock on. Session key is not exported. '
             'This overlay is not AES-GCM.';
       case VeilMode.obfuscation:
-        return 'Obfuscation: synthetic UI noise over the live camera. '
-            'Mobile obfuscation surface — not AES-GCM ciphertext.';
+        return 'Natural camera veil (default). Lift only if you turn '
+            'obfuscation off or accept a call through AZ-OS. '
+            'Mobile surface — not AES-GCM ciphertext.';
       case VeilMode.broadcast:
         return 'Broadcast: authorized-receiver idea. HMAC wrap lives on desktop. '
             'Phone shows lock + live preview only.';
@@ -192,12 +193,14 @@ class SettingsPage extends StatelessWidget {
   static const _body =
       'This app is a local-first VeilLock client. Frames never leave the '
       'device. No analytics.\n\n'
+      'Consent-gated camera protection via AZ-OS\n'
+      'The camera stays under a privacy veil unless you turn obfuscation '
+      'off or accept a call through AZ-OS. You control both paths.\n\n'
       'What this phone app is\n'
       'A live camera preview with Private / Obfuscation / Broadcast modes. '
-      'Obfuscation draws fake-window noise (a Dart port of desktop synthetic '
-      'UI noise) plus a lock icon. v1 does not implement AES-256-GCM. Do not '
-      'claim GCM on this surface. The Python desktop engine remains the '
-      'AES-GCM pipeline.\n\n'
+      'Obfuscation is a visual veil plus a lock icon. v1 does not implement '
+      'AES-256-GCM. Do not claim GCM on this surface. The Python desktop '
+      'engine remains the AES-GCM pipeline and the AZ-OS hook.\n\n'
       'Desktop tether into Zoom / FaceTime\n'
       'The phone does not become a virtual webcam. On the desktop package:\n'
       '  pip install -e ".[tether]"\n'
@@ -205,7 +208,7 @@ class SettingsPage extends StatelessWidget {
       'That publishes a virtual camera named VeilLock. The call app chooses it:\n'
       '  Zoom (desktop): Settings → Video → Camera → VeilLock\n'
       '  FaceTime (Mac): Video menu → VeilLock\n'
-      'VeilLock does not MITM the call.\n\n'
+      'Default feed is the natural veil until you lift it.\n\n'
       'FaceTime / iOS limits\n'
       'iOS cannot inject a replacement camera into FaceTime. Apple does not '
       'give third-party apps a virtual-camera API on iPhone. This IPA cannot '

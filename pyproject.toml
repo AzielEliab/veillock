@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "veillock"
-version = "0.1.0"
-description = "Live-stream encryption protocol: encrypt visual output before it reaches any external display (VeilLock, July 2026)."
+version = "0.2.0"
+description = "Consent-gated camera protection via AZ-OS: natural camera/video veil unless you turn it off or accept a call (VeilLock, Aziel Eliab)."
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [{name = "Aziel Eliab"}]
@@ -17,6 +17,9 @@ keywords = [
     "forward-secrecy",
     "aes-gcm",
     "privacy",
+    "consent",
+    "az-os",
+    "camera",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",

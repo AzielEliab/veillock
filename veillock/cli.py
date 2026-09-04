@@ -3,6 +3,9 @@
     veillock encrypt --in frames.npy --out cipher.npz --mode private|broadcast|obfuscation
     veillock decrypt --in cipher.npz --out frames.npy --key ...
     veillock tether [--source camera|screen] [--mode obfuscation] [--device 0]
+    veillock tether --obfuscation-off
+    veillock tether --azos-accept --actor NAME
+    veillock azos
     veillock apps
     veillock ui [--host 127.0.0.1] [--port 8761]
     veillock version
@@ -33,8 +36,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="veillock",
         description=(
-            "VeilLock — encrypt visual frames before they reach any external "
-            "display (Aziel Eliab, July 2026). "
+            "VeilLock — consent-gated camera protection via AZ-OS "
+            "(Aziel Eliab). Default: natural camera/video veil. "
             "Local UI: `veillock ui` at http://127.0.0.1:8761."
         ),
     )
@@ -90,7 +93,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_tether = sub.add_parser(
         "tether",
-        help="Pipe YOUR camera/screen through VeilLock as virtual camera VeilLock.",
+        help="Pipe YOUR camera/video through VeilLock. Default: natural veil.",
     )
     p_tether.add_argument(
         "--source",
@@ -102,7 +105,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--mode",
         choices=("obfuscation", "private", "broadcast"),
         default="obfuscation",
-        help="Public feed mode (default obfuscation: call apps see synthetic UI noise).",
+        help="Seal mode (default obfuscation). Public feed stays veiled unless you lift it.",
     )
     p_tether.add_argument(
         "--device",
@@ -113,7 +116,24 @@ def _build_parser() -> argparse.ArgumentParser:
     p_tether.add_argument(
         "--trusted",
         action="store_true",
-        help="Send trusted local decode to the virtual camera (your choice). Default: decoy/black.",
+        help="Lift the veil and send the trusted local decode (same as --obfuscation-off).",
+    )
+    p_tether.add_argument(
+        "--obfuscation-off",
+        action="store_true",
+        dest="obfuscation_off",
+        help="You turned obfuscation off. Lifts the camera veil.",
+    )
+    p_tether.add_argument(
+        "--azos-accept",
+        action="store_true",
+        dest="azos_accept",
+        help="You accepted a call through AZ-OS. Lifts the camera veil.",
+    )
+    p_tether.add_argument(
+        "--actor",
+        default="",
+        help="Named actor for the AZ-OS call-accept receipt (you).",
     )
     p_tether.add_argument("--width", type=int, default=640, help="Virtual camera width (default 640).")
     p_tether.add_argument("--height", type=int, default=480, help="Virtual camera height (default 480).")
@@ -123,6 +143,27 @@ def _build_parser() -> argparse.ArgumentParser:
         "apps",
         help="How to pick VeilLock in Zoom, Skype, FaceTime (Mac), Meet, Teams.",
     )
+    p_azos = sub.add_parser("azos", help="Show the AZ-OS consent hook status.")
+    p_azos.add_argument("--json", action="store_true", dest="as_json", help="Print hook status as JSON.")
+    p_azos.add_argument(
+        "--accept",
+        action="store_true",
+        help="Record that you accepted a call through AZ-OS.",
+    )
+    p_azos.add_argument("--end", action="store_true", help="End the accepted call and re-veil.")
+    p_azos.add_argument(
+        "--obfuscation-off",
+        action="store_true",
+        dest="obfuscation_off",
+        help="Turn obfuscation off (you).",
+    )
+    p_azos.add_argument(
+        "--obfuscation-on",
+        action="store_true",
+        dest="obfuscation_on",
+        help="Turn obfuscation back on (default).",
+    )
+    p_azos.add_argument("--actor", default="", help="Named actor for call-accept.")
     return parser
 
 
@@ -180,6 +221,32 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stdout.write(APPS_GUIDE)
         if not APPS_GUIDE.endswith("\n"):
             sys.stdout.write("\n")
+        return 0
+
+    if args.cmd == "azos":
+        import json
+
+        from veillock.azos import HOOK
+
+        if args.obfuscation_off:
+            HOOK.set_obfuscation(False)
+        if args.obfuscation_on:
+            HOOK.set_obfuscation(True)
+        if args.accept:
+            HOOK.accept_call(actor=args.actor or "user")
+        if args.end:
+            HOOK.end_call()
+        payload = HOOK.status()
+        if args.as_json:
+            sys.stdout.write(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+        else:
+            sys.stdout.write(
+                f"VeilLock AZ-OS hook  veil={payload['veil']}  "
+                f"reason={payload['reason']}\n"
+                f"obfuscation_on={payload['obfuscation_on']}  "
+                f"call_accepted={payload['call_accepted']}\n"
+                "You control the veil. Author: Aziel Eliab.\n"
+            )
         return 0
 
     if args.cmd == "tether":
