@@ -4,7 +4,7 @@
 set -euo pipefail
 
 HOST="${VEILLOCK_HOME_HOST:-https://veillock-download-tracker.vibelock.workers.dev}"
-ASSET="${VEILLOCK_HOME_ASSET:-veillock-0.1.0.tar.gz}"
+ASSET="${VEILLOCK_HOME_ASSET:-veillock-0.2.0.tar.gz}"
 WORKDIR="${VEILLOCK_HOME:-$HOME/veillock}"
 
 mkdir -p "$WORKDIR"

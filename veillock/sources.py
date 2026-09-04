@@ -4,9 +4,9 @@ CameraSource / ScreenSource yield RGB uint8 frames with the same iterator
 contract as FrameSource. PulseCheck is consulted *before* a frame is
 yielded so a failing gate never produces plaintext.
 
-This is not a call interceptor, not malware, and not a scraper of other
-apps' private buffers. The caller already owns the camera or the display
-they are piping through VeilLock.
+Consent-gated camera protection via AZ-OS: the caller already owns the
+camera or the display they are piping through VeilLock. The public feed
+stays veiled unless the user lifts it.
 """
 
 from __future__ import annotations
@@ -65,9 +65,10 @@ def _bgr_to_rgb(bgr: np.ndarray) -> np.ndarray:
 class CameraSource:
     """Yield RGB uint8 frames from THIS machine's camera (opt-in).
 
-    Uses OpenCV ``cv2.VideoCapture(device)``. Not a Zoom/FaceTime MITM:
-    the call app later *chooses* the VeilLock virtual camera if the user
-    starts ``veillock tether``.
+    Uses OpenCV ``cv2.VideoCapture(device)``. The call app later
+    *chooses* the VeilLock virtual camera if the user starts
+    ``veillock tether``. The public feed is veiled until the user
+    turns obfuscation off or accepts a call through AZ-OS.
     """
 
     def __init__(

@@ -74,10 +74,10 @@ PAGE = r"""<!DOCTYPE html>
 <body>
 <main>
   <header>
-    <p class="mark">Aziel Eliab · July 2026</p>
+    <p class="mark">Aziel Eliab · September 2026</p>
     <h1>VeilLock</h1>
-    <p class="motto">Render → encrypt → decode locally → display.</p>
-    <span class="local">localhost · 127.0.0.1 · key shown once</span>
+    <p class="motto">Consent-gated camera protection via AZ-OS.</p>
+    <span class="local">localhost · 127.0.0.1 · you control the veil</span>
   </header>
   <section class="card">
     <h2>Seal synthetic frames</h2>
@@ -105,30 +105,41 @@ PAGE = r"""<!DOCTYPE html>
   </section>
   <section class="card" id="tether">
     <h2>Tether</h2>
-    <p class="help">Pipe <em>your</em> camera or screen through VeilLock into Zoom, FaceTime (Mac), Skype, Meet, or Teams. The call app must choose the virtual camera named <strong>VeilLock</strong>. Not a call interceptor. iPhone FaceTime cannot select a third-party virtual camera (Apple).</p>
+    <p class="help">Pipe <em>your</em> camera or video through VeilLock. The public feed is a natural privacy veil unless you turn obfuscation off or accept a call through AZ-OS. You control both paths. The call app chooses the virtual camera named <strong>VeilLock</strong>. iPhone FaceTime cannot select a third-party virtual camera (Apple).</p>
     <label>Source</label>
     <select id="tether-source">
-      <option value="camera" selected>camera (this device)</option>
+      <option value="camera" selected>camera / video (this device)</option>
       <option value="screen">screen (this display)</option>
     </select>
     <label>Mode</label>
     <select id="tether-mode">
-      <option value="obfuscation" selected>obfuscation (call apps see synthetic UI noise)</option>
-      <option value="private">private (black unless trusted decode)</option>
+      <option value="obfuscation" selected>obfuscation (default veil)</option>
+      <option value="private">private</option>
       <option value="broadcast">broadcast</option>
     </select>
-    <label class="inline"><input type="checkbox" id="tether-trusted"> Trusted decode to the virtual camera (your choice; default off)</label>
     <p style="margin-top:0.95rem">
       <button class="primary" id="tether-start" type="button">Start</button>
       <button class="ghost" id="tether-stop" type="button">Stop</button>
       <button class="ghost" id="copy-apps" type="button">Copy app instructions</button>
     </p>
-    <p class="help" id="tether-status">Stopped. Default mode is obfuscation.</p>
+    <p class="help" id="tether-status">Stopped. Camera and video are veiled by default.</p>
     <h2>App instructions</h2>
     <pre class="apps" id="apps-help">__APPS__</pre>
   </section>
+  <section class="card" id="azos">
+    <h2>AZ-OS hook</h2>
+    <p class="help">The veil stays on unless you turn obfuscation off, or you accept a call through AZ-OS. That is your consent. Hosted AZ-OS halt is a token, not killing this computer.</p>
+    <label class="inline"><input type="checkbox" id="obfuscation-on" checked> Obfuscation on (default). Uncheck to lift the veil.</label>
+    <label>Actor (you)</label>
+    <input id="azos-actor" type="text" value="user" style="width:100%;background:#0d0b14;color:var(--ink);border:1px solid var(--line);padding:0.45rem 0.55rem;border-radius:6px;">
+    <p style="margin-top:0.95rem">
+      <button class="primary" id="azos-accept" type="button">Accept call through AZ-OS</button>
+      <button class="ghost" id="azos-end" type="button">End call (re-veil)</button>
+    </p>
+    <p class="help" id="azos-status">Veil on — camera and video protected.</p>
+  </section>
   <p class="err" id="err" hidden></p>
-  <footer>VeilLock __VERSION__ · Apache-2.0 · forks welcome · <code>veillock ui</code></footer>
+  <footer>VeilLock __VERSION__ · AZ-OS hook · you control the veil · Apache-2.0 · <code>veillock ui</code></footer>
 </main>
 <script>
 (function () {
@@ -188,12 +199,11 @@ PAGE = r"""<!DOCTYPE html>
         body: JSON.stringify({
           source: $("tether-source").value,
           mode: $("tether-mode").value,
-          trusted: $("tether-trusted").checked,
         }),
       });
       const data = await res.json();
       if (!res.ok || data.ok === false) throw new Error(data.error || ("HTTP " + res.status));
-      $("tether-status").textContent = "Running. Pick camera VeilLock in the call app.";
+      $("tether-status").textContent = "Running. Camera veiled unless you lifted it.";
     } catch (e) {
       $("err").hidden = false;
       $("err").textContent = String(e.message || e);
@@ -209,6 +219,57 @@ PAGE = r"""<!DOCTYPE html>
       $("err").textContent = String(e.message || e);
     }
   };
+  async function refreshAzos() {
+    try {
+      const res = await fetch("/api/azos");
+      const data = await res.json();
+      $("obfuscation-on").checked = data.obfuscation_on !== false;
+      const veil = data.veil === "lifted" ? "lifted" : "on";
+      $("azos-status").textContent = "Veil " + veil + " — " + (data.reason || "");
+    } catch (e) { /* local only */ }
+  }
+  $("obfuscation-on").onchange = async () => {
+    try {
+      const res = await fetch("/api/azos/obfuscation", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({on: $("obfuscation-on").checked}),
+      });
+      const data = await res.json();
+      $("azos-status").textContent = "Veil " + (data.veil || "") + " — " + (data.reason || "");
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    }
+  };
+  $("azos-accept").onclick = async () => {
+    $("err").hidden = true;
+    try {
+      const res = await fetch("/api/azos/accept", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({actor: $("azos-actor").value || "user"}),
+      });
+      const data = await res.json();
+      $("azos-status").textContent = "Veil " + (data.veil || "lifted") + " — " + (data.reason || "you accepted a call through AZ-OS");
+      $("tether-status").textContent = "AZ-OS call accepted. Veil lifted for this session.";
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    }
+  };
+  $("azos-end").onclick = async () => {
+    try {
+      const res = await fetch("/api/azos/end", {method: "POST"});
+      const data = await res.json();
+      $("azos-status").textContent = "Veil " + (data.veil || "on") + " — " + (data.reason || "call ended");
+      $("tether-status").textContent = "Call ended. Veil restored unless you turned obfuscation off.";
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    }
+  };
+  refreshAzos();
   $("copy-apps").onclick = async () => {
     const text = $("apps-help").textContent;
     try {
@@ -271,12 +332,24 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, PAGE.encode("utf-8"), "text/html; charset=utf-8")
             return
         if path == "/health":
-            self._json(200, {"ok": True, "bind_host": DEFAULT_HOST, "name": "VeilLock"})
+            self._json(
+                200,
+                {
+                    "ok": True,
+                    "bind_host": DEFAULT_HOST,
+                    "name": "VeilLock",
+                    "identity": "consent-gated camera protection via AZ-OS",
+                    "azos_hook": True,
+                },
+            )
             return
         if path == "/api/apps":
             self._send(200, APPS_GUIDE.encode("utf-8"), "text/plain; charset=utf-8")
             return
         if path == "/api/tether":
+            self._json(200, RUNTIME.status())
+            return
+        if path == "/api/azos":
             self._json(200, RUNTIME.status())
             return
         self._json(404, {"error": "not found"})
@@ -291,6 +364,32 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/tether/stop":
             self._json(200, RUNTIME.stop())
             return
+        if path == "/api/azos/end":
+            self._json(200, RUNTIME.end_call())
+            return
+        if path == "/api/azos/accept":
+            try:
+                body = json.loads(raw.decode("utf-8") or "{}") if raw else {}
+                self._json(
+                    200,
+                    RUNTIME.accept_call(
+                        actor=str(body.get("actor") or "user"),
+                        call_id=body.get("call_id"),
+                    ),
+                )
+            except Exception as exc:  # noqa: BLE001
+                self._json(400, {"ok": False, "error": str(exc)})
+            return
+        if path == "/api/azos/obfuscation":
+            try:
+                body = json.loads(raw.decode("utf-8") or "{}") if raw else {}
+                on = body.get("on")
+                if on is None:
+                    on = body.get("obfuscation_on", True)
+                self._json(200, RUNTIME.set_obfuscation(bool(on)))
+            except Exception as exc:  # noqa: BLE001
+                self._json(400, {"ok": False, "error": str(exc)})
+            return
         if path == "/api/tether/start":
             try:
                 body = json.loads(raw.decode("utf-8") or "{}") if raw else {}
@@ -298,6 +397,9 @@ class Handler(BaseHTTPRequestHandler):
                     source=str(body.get("source") or "camera"),
                     mode=str(body.get("mode") or "obfuscation"),
                     trusted=bool(body.get("trusted")),
+                    obfuscation_off=bool(body.get("obfuscation_off")),
+                    azos_accept=bool(body.get("azos_accept")),
+                    actor=str(body.get("actor") or ""),
                     device=int(body.get("device") or 0),
                 )
                 self._json(200, RUNTIME.start(cfg))
@@ -363,7 +465,7 @@ def make_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> Threading
 def serve(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
     httpd = make_server(host, port)
     sys.stdout.write(f"VeilLock UI  http://{host}:{port}/\n")
-    sys.stdout.write("Local only. Session key is shown once and not written to disk.\n")
+    sys.stdout.write("Local only. Consent-gated camera protection via AZ-OS. You control the veil.\n")
     sys.stdout.flush()
     try:
         httpd.serve_forever()

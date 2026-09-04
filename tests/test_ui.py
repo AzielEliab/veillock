@@ -39,6 +39,42 @@ def test_ui_get_root_contains_tether() -> None:
             assert b"VeilLock" in body
             assert b"127.0.0.1" in body
             assert b"Tether" in body
+            assert b"AZ-OS" in body
+            assert b"consent" in body.lower() or b"Consent" in body
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join(timeout=2)
+
+
+def test_ui_azos_accept_lifts_veil() -> None:
+    import json
+    import urllib.request
+
+    httpd, thread = _start()
+    try:
+        port = httpd.server_address[1]
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/azos/accept",
+            data=json.dumps({"actor": "Aziel Eliab"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as res:
+            body = json.loads(res.read().decode("utf-8"))
+            assert res.status == 200
+            assert body.get("azos_hook") is True
+            assert body.get("veil") == "lifted"
+            assert "AZ-OS" in (body.get("reason") or "")
+        req2 = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/azos/end",
+            data=b"{}",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req2, timeout=5) as res:
+            body = json.loads(res.read().decode("utf-8"))
+            assert body.get("veil") == "on"
     finally:
         httpd.shutdown()
         httpd.server_close()

@@ -14,7 +14,7 @@ import { handleRuntime } from "./runtime.js";
  */
 
 const PROJECT = "veillock";
-const DEFAULT_ASSET = "veillock-0.1.0.tar.gz";
+const DEFAULT_ASSET = "veillock-0.2.0.tar.gz";
 const DEFAULT_OWNER = "AzielEliab";
 const DEFAULT_REPO = "veillock";
 const DEFAULT_BRANCH = "main";
@@ -305,8 +305,8 @@ async function indexHtml(env) {
 </style>
 <body>
   <h1>VeilLock</h1>
-  <p class="motto">Render to encrypt to decode locally to display. Author Aziel Eliab.</p>
-  <p class="banner">Live-stream encryption of visual output before it reaches any external display. Not FaceTime/Zoom intercept. Not call intercept. Author: Aziel Eliab.</p>
+  <p class="motto">Consent-gated camera protection via AZ-OS. Author Aziel Eliab.</p>
+  <p class="banner">Your camera and video stay veiled unless you turn obfuscation off or accept a call through AZ-OS. You control. Author: Aziel Eliab.</p>
   <div class="card">
     <div class="nums">
       <p class="count">${v}<span>Views</span></p>

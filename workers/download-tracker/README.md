@@ -61,7 +61,7 @@ https://github.com/AzielEliab/veillock/releases
 Tracked asset URL (after deploy):
 
 ```
-https://veillock-download-tracker.vibelock.workers.dev/download?repo=AzielEliab/veillock&tag=latest&asset=veillock-0.1.0.tar.gz
+https://veillock-download-tracker.vibelock.workers.dev/download?repo=AzielEliab/veillock&tag=latest&asset=veillock-0.2.0.tar.gz
 ```
 
 A fork reports its own download:
@@ -74,7 +74,7 @@ curl -X POST https://veillock-download-tracker.vibelock.workers.dev/event \
     "repo": "veillock",
     "branch": "main",
     "fork": "1",
-    "asset": "veillock-0.1.0.tar.gz"
+    "asset": "veillock-0.2.0.tar.gz"
   }'
 ```
 
@@ -96,9 +96,13 @@ This Worker also hosts the product runtime API (CORS `*`). `/v1` routes do **not
 
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | `/v1/health` | Liveness |
+| GET | `/v1/health` | Liveness. AZ-OS hook present. |
 | GET | `/openapi.json` | OpenAPI 3.1 |
 | GET | `/ai` | ChatGPT Actions, Grok/xAI tools, Venice HTTP tools; MCP catalog |
+| POST | `/v1/consent` | Veil decision (default on; user off or AZ-OS accept lifts) |
+| POST | `/v1/call-accept` | User-accepted call receipt |
+| POST | `/v1/azos-hook` | Consent-gate status |
+| POST | `/v1/obfuscate-preview` | Natural camera/video veil recipe |
 
 See the product README section **Use with Grok, ChatGPT, Venice**.
 OpenAPI: https://veillock-download-tracker.vibelock.workers.dev/openapi.json
