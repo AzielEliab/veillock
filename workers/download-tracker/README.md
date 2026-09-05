@@ -95,15 +95,17 @@ veil compose, and honest call-app steps. Counted `/download` and one-click
 install stay on the same page. Title is `VeilLock — Aziel Eliab`. `/v1` does
 not increment downloads.
 
-## Use with Grok, ChatGPT, Venice
+## Use with AI assistants
+
+Works with ChatGPT (GPT Actions / OpenAI), Grok (xAI), Venice, Claude (Anthropic), Cursor (MCP), Glama (MCP), Perplexity, Microsoft Copilot / Bing, Google Gemini / Vertex, Mistral, Meta AI, Apple Intelligence surfaces, Amazon Q tooling, DuckAssist, You.com, Cohere, and other MCP/OpenAPI-capable assistants.
 
 This Worker also hosts the product runtime API (CORS `*`). `/v1` routes do **not** increment `DOWNLOADS`.
 
 | Method | Path | Notes |
 |--------|------|-------|
 | GET | `/v1/health` | Liveness. AZ-OS hook present. |
-| GET | `/openapi.json` | OpenAPI 3.1 |
-| GET | `/ai` | ChatGPT Actions, Grok/xAI tools, Venice HTTP tools; MCP catalog |
+| GET | `/openapi.json` | OpenAPI 3.1 (GPT Actions, Grok/xAI, Claude, Copilot, Gemini, and other OpenAPI imports) |
+| GET | `/ai` | How to wire AI assistants; MCP catalog |
 | GET/POST | `/v1/apps` | Local-app steps. Does not inject into FaceTime / Zoom / Meet / Teams / Skype |
 | GET | `/cite.json` | How to cite. Aziel Eliab only. Existing Zenodo DOI only. |
 | POST | `/v1/consent` | Veil decision (default on; user off or AZ-OS accept lifts) |
@@ -111,5 +113,8 @@ This Worker also hosts the product runtime API (CORS `*`). `/v1` routes do **not
 | POST | `/v1/azos-hook` | Consent-gate status |
 | POST | `/v1/obfuscate-preview` | Natural camera/video veil recipe |
 
-See the product README section **Use with Grok, ChatGPT, Venice**.
+See the product README section **Use with AI assistants**.
 OpenAPI: https://veillock-download-tracker.vibelock.workers.dev/openapi.json
+MCP catalog: https://aziel-runtime.vibelock.workers.dev/mcp
+
+Identity is Aziel Eliab only.

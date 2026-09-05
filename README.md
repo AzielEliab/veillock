@@ -294,7 +294,9 @@ mobile/             Flutter iPhone & Android client
 CONTRIBUTING.md     forks are first-class
 ```
 
-## Use with Grok, ChatGPT, Venice
+## Use with AI assistants
+
+Works with ChatGPT (GPT Actions / OpenAI), Grok (xAI), Venice, Claude (Anthropic), Cursor (MCP), Glama (MCP), Perplexity, Microsoft Copilot / Bing, Google Gemini / Vertex, Mistral, Meta AI, Apple Intelligence surfaces, Amazon Q tooling, DuckAssist, You.com, Cohere, and other MCP/OpenAPI-capable assistants.
 
 Live HTTPS runtime on the download-tracker Worker (does **not** increment the download counter):
 
@@ -310,6 +312,14 @@ POST /v1/pulse {values}, POST /v1/obfuscate-preview {seed,width,height,source}, 
 **Grok / xAI tools:** add an HTTP/OpenAPI tool pointing at `https://veillock-download-tracker.vibelock.workers.dev/openapi.json`.
 
 **Venice HTTP tools:** add an HTTP tool with method, URL, and JSON body from that spec. Start with GET `https://veillock-download-tracker.vibelock.workers.dev/v1/health`.
+
+**Claude (Anthropic):** import the same OpenAPI URL as a custom tool, or attach the MCP catalog.
+
+**Cursor / Glama (MCP):** `POST https://aziel-runtime.vibelock.workers.dev/mcp`.
+
+**Other OpenAPI / MCP assistants** (Perplexity, Microsoft Copilot / Bing, Google Gemini / Vertex, Mistral, Meta AI, Apple Intelligence surfaces, Amazon Q tooling, DuckAssist, You.com, Cohere, and others): import `openapi.json` or attach the MCP catalog.
+
+Identity is Aziel Eliab only.
 
 ```bash
 curl -sS -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/pulse \
