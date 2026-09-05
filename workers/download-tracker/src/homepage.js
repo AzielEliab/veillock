@@ -423,9 +423,9 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
     post("/v1/pulse", { values: values }).then(function (out) {
       var data = out.data || {};
       if (data.pci === "PASS") {
-        showResult("pulse-result", "pass", "Pulse PASS — " + label, "Display stays obfuscation, not plaintext. " + (data.note || ""));
+        showResult("pulse-result", "pass", "Pulse PASS — " + label, "The public feed stays a veil (obfuscation), not plaintext. Pulse is alive.");
       } else {
-        showResult("pulse-result", "fail", "Pulse FAIL — halt / noise", "Never plaintext. " + (data.reason || "dead pulse") + ". " + (data.note || ""));
+        showResult("pulse-result", "fail", "Pulse FAIL — halt / noise", "Generation halted. Noise only — never plaintext. " + (data.reason || "dead pulse") + ".");
       }
     }).catch(function () {
       showResult("pulse-result", "fail", "Pulse unreachable", "The desk could not reach PulseCheck.");
