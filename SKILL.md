@@ -27,6 +27,7 @@ Ops (do **not** increment downloads or views):
 |--------|------|------|
 | GET | `/v1/health` | Liveness. AZ-OS hook present. |
 | GET | `/v1/skill` | This markdown. |
+| GET/POST | `/v1/apps` | Local-app steps. Does not inject into FaceTime, Zoom, Meet, Teams, or Skype. |
 | POST | `/v1/pulse` | PulseCheck. Fail → halt/noise, never plaintext. |
 | POST | `/v1/obfuscate-preview` | Natural camera/video veil recipe. |
 | POST | `/v1/azos-hook` | Consent-gate status. |
@@ -46,6 +47,9 @@ curl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.work
 curl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/call-accept \
   -H 'content-type: application/json' \
   -d '{"actor":"user"}'
+curl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/apps \
+  -H 'content-type: application/json' \
+  -d '{"app":"facetime"}'
 ```
 
 ## Local (after one-click install)

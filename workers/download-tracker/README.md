@@ -44,7 +44,7 @@ custom DNS is ready. This tree documents the intended public URL
 
 | Method | Path | Behavior |
 |--------|------|----------|
-| GET | `/` | Index page with the GitHub Releases link |
+| GET | `/` | Product UI: consent desk, PulseCheck, veil compose, call-app steps, counted download |
 | GET | `/download?repo=&tag=&asset=` | Increment KV, 302 to the GitHub asset (default: releases page) |
 | GET | `/stats` | JSON totals plus per-repo and per-branch breakdown |
 | POST | `/event` | A fork reports a download |
@@ -90,6 +90,11 @@ curl -X POST https://veillock-download-tracker.vibelock.workers.dev/event \
 
 All responses include `Access-Control-Allow-Origin: *`.
 
+The homepage is the live VeilLock desk: consent (veil on / lifted), PulseCheck,
+veil compose, and honest call-app steps. Counted `/download` and one-click
+install stay on the same page. Title is `VeilLock — Aziel Eliab`. `/v1` does
+not increment downloads.
+
 ## Use with Grok, ChatGPT, Venice
 
 This Worker also hosts the product runtime API (CORS `*`). `/v1` routes do **not** increment `DOWNLOADS`.
@@ -99,6 +104,8 @@ This Worker also hosts the product runtime API (CORS `*`). `/v1` routes do **not
 | GET | `/v1/health` | Liveness. AZ-OS hook present. |
 | GET | `/openapi.json` | OpenAPI 3.1 |
 | GET | `/ai` | ChatGPT Actions, Grok/xAI tools, Venice HTTP tools; MCP catalog |
+| GET/POST | `/v1/apps` | Local-app steps. Does not inject into FaceTime / Zoom / Meet / Teams / Skype |
+| GET | `/cite.json` | How to cite. Aziel Eliab only. Existing Zenodo DOI only. |
 | POST | `/v1/consent` | Veil decision (default on; user off or AZ-OS accept lifts) |
 | POST | `/v1/call-accept` | User-accepted call receipt |
 | POST | `/v1/azos-hook` | Consent-gate status |

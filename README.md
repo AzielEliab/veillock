@@ -28,8 +28,8 @@ The script curls the **counted** tarball from this project's Worker
 (`/download`, User-Agent `Mozilla/5.0`), extracts, makes a venv, and
 `pip install -e .`. Then run `veillock ui`.
 
-Or tap **Download** / **One-click install** on the Worker homepage
-(a 6th-grader can tap it):
+Or open the live VeilLock desk
+(consent, PulseCheck, veil compose, call-app steps, plus Download / one-click install):
 https://veillock-download-tracker.vibelock.workers.dev/
 
 ## Counted download (Cloudflare Worker)
