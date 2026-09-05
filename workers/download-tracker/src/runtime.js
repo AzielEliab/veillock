@@ -46,10 +46,32 @@ function utcNow() {
   return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
+const AI_CLIENTS = [
+  "ChatGPT (GPT Actions / OpenAI)",
+  "Grok (xAI)",
+  "Venice",
+  "Claude (Anthropic)",
+  "Cursor (MCP)",
+  "Glama (MCP)",
+  "Perplexity",
+  "Microsoft Copilot / Bing",
+  "Google Gemini / Vertex",
+  "Mistral",
+  "Meta AI",
+  "Apple Intelligence surfaces",
+  "Amazon Q tooling",
+  "DuckAssist",
+  "You.com",
+  "Cohere",
+  "other MCP/OpenAPI-capable assistants",
+];
+
 function aiHowTo(base) {
   const openapi = base + "/openapi.json";
   const health = base + "/v1/health";
+  const mcp = "https://aziel-runtime.vibelock.workers.dev/mcp";
   return {
+    clients: AI_CLIENTS,
     chatgpt_actions: [
       "Open GPT Editor → Actions → Import from URL",
       "Paste " + openapi,
@@ -67,7 +89,21 @@ function aiHowTo(base) {
       "Start with GET " + health,
       "Then call the product POST listed in the spec",
     ],
-    mcp_catalog: "https://aziel-runtime.vibelock.workers.dev/mcp",
+    claude_anthropic: [
+      "Import " + openapi + " as a custom OpenAPI tool",
+      "Or attach the MCP catalog at " + mcp,
+    ],
+    cursor_mcp: [
+      "Add an MCP server pointing at POST " + mcp,
+    ],
+    glama_mcp: [
+      "Register the MCP catalog at " + mcp,
+    ],
+    openapi_or_mcp: [
+      "Perplexity, Microsoft Copilot / Bing, Google Gemini / Vertex, Mistral, Meta AI, Apple Intelligence surfaces, Amazon Q tooling, DuckAssist, You.com, Cohere, and other MCP/OpenAPI-capable assistants: import " + openapi + " or attach " + mcp,
+    ],
+    mcp_catalog: mcp,
+    identity: "Aziel Eliab only",
     notes: [
       "GET /download still serves the gzip tarball and increments the counter.",
       "/v1, /openapi.json, and /ai do not increment DOWNLOADS.",
@@ -76,7 +112,7 @@ function aiHowTo(base) {
 }
 
 const PRODUCT = "veillock";
-const SKILL_MARKDOWN = "---\nname: VeilLock\ndescription: Use when calling VeilLock hosted /v1 or installing the local package. Consent-gated camera protection via AZ-OS. Author Aziel Eliab.\n---\n\n# VeilLock\n\nConsent-gated camera protection via AZ-OS. Author: **Aziel Eliab**.\n\n**THIS IS:** a privacy veil on the user's own camera and video. The feed is naturally obfuscated unless (a) the user turns obfuscation off, or (b) the user accepts a call through AZ-OS.\n\n**THIS IS NOT:** a VPN, Tor, anonymous relay, or a claim of untraceable origin. Hosted `/v1` does not increment downloads or views. Hosted AZ-OS halt is a token, not killing the caller OS.\n\nAlways send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent.\n\n## Call these URLs\n\n- Worker OpenAPI: https://veillock-download-tracker.vibelock.workers.dev/openapi.json\n- Catalog OpenAPI: https://aziel-runtime.vibelock.workers.dev/openapi.json\n- MCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`\n- Live skill (this markdown): `GET https://veillock-download-tracker.vibelock.workers.dev/v1/skill`\n- AZ-OS: https://azos-download-tracker.vibelock.workers.dev/v1/status\n\nOps (do **not** increment downloads or views):\n\n| Method | Path | What |\n|--------|------|------|\n| GET | `/v1/health` | Liveness. AZ-OS hook present. |\n| GET | `/v1/skill` | This markdown. |\n| GET/POST | `/v1/apps` | Local-app steps. Does not inject into FaceTime, Zoom, Meet, Teams, or Skype. |\n| POST | `/v1/pulse` | PulseCheck. Fail \u2192 halt/noise, never plaintext. |\n| POST | `/v1/obfuscate-preview` | Natural camera/video veil recipe. |\n| POST | `/v1/azos-hook` | Consent-gate status. |\n| POST | `/v1/call-accept` | User accepted a call through AZ-OS (receipt). |\n| POST | `/v1/consent` | Evaluate veil: default on; lift if user off or call accepted. |\n\nGrok: import OpenAPI as a custom tool. ChatGPT: GPT Actions. Venice: HTTP tools.\n\n## Example\n\n```bash\ncurl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/health\ncurl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/skill\ncurl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/consent \\\n  -H 'content-type: application/json' \\\n  -d '{\"obfuscation_on\":true,\"call_accepted\":false}'\ncurl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/call-accept \\\n  -H 'content-type: application/json' \\\n  -d '{\"actor\":\"user\"}'\n```\n\n## Local (after one-click install)\n\n```bash\ncurl -fsSL https://veillock-download-tracker.vibelock.workers.dev/install.sh | bash\nveillock ui\nveillock doctor\nveillock azos\n```\n\nThen open http://127.0.0.1:8761 (loopback only).\n\nCounted download (gzip HTTP 200, no 302): https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.2.0.tar.gz\nGitHub: https://github.com/AzielEliab/veillock\n\nPaper: DOI https://doi.org/10.5281/zenodo.21431659 \u00b7 https://zenodo.org/records/21431659 \u00b7 Apache-2.0. Forks welcome.\n";
+const SKILL_MARKDOWN = "---\nname: VeilLock\ndescription: Use when calling VeilLock hosted /v1 or installing the local package. Consent-gated camera protection via AZ-OS. Author Aziel Eliab.\n---\n\n# VeilLock\n\nConsent-gated camera protection via AZ-OS. Author: **Aziel Eliab**.\n\n**THIS IS:** a privacy veil on the user's own camera and video. The feed is naturally obfuscated unless (a) the user turns obfuscation off, or (b) the user accepts a call through AZ-OS.\n\n**THIS IS NOT:** a VPN, Tor, anonymous relay, or a claim of untraceable origin. Hosted `/v1` does not increment downloads or views. Hosted AZ-OS halt is a token, not killing the caller OS.\n\nAlways send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent.\n\n## Call these URLs\n\n- Worker OpenAPI: https://veillock-download-tracker.vibelock.workers.dev/openapi.json\n- Catalog OpenAPI: https://aziel-runtime.vibelock.workers.dev/openapi.json\n- MCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`\n- Live skill (this markdown): `GET https://veillock-download-tracker.vibelock.workers.dev/v1/skill`\n- AZ-OS: https://azos-download-tracker.vibelock.workers.dev/v1/status\n\nOps (do **not** increment downloads or views):\n\n| Method | Path | What |\n|--------|------|------|\n| GET | `/v1/health` | Liveness. AZ-OS hook present. |\n| GET | `/v1/skill` | This markdown. |\n| GET/POST | `/v1/apps` | Local-app steps. Does not inject into FaceTime, Zoom, Meet, Teams, or Skype. |\n| POST | `/v1/pulse` | PulseCheck. Fail \u2192 halt/noise, never plaintext. |\n| POST | `/v1/obfuscate-preview` | Natural camera/video veil recipe. |\n| POST | `/v1/azos-hook` | Consent-gate status. |\n| POST | `/v1/call-accept` | User accepted a call through AZ-OS (receipt). |\n| POST | `/v1/consent` | Evaluate veil: default on; lift if user off or call accepted. |\n\nWorks with ChatGPT (GPT Actions / OpenAI), Grok (xAI), Venice, Claude (Anthropic), Cursor (MCP), Glama (MCP), Perplexity, Microsoft Copilot / Bing, Google Gemini / Vertex, Mistral, Meta AI, Apple Intelligence surfaces, Amazon Q tooling, DuckAssist, You.com, Cohere, and other MCP/OpenAPI-capable assistants. ChatGPT: GPT Actions (import OpenAPI). Grok / xAI: import OpenAPI as a custom tool. Venice: HTTP tools from the spec. Claude: OpenAPI tool or MCP. Cursor / Glama: MCP catalog. Other OpenAPI/MCP assistants: same Worker OpenAPI or MCP URL.\n\nIdentity is Aziel Eliab only.\n\n## Example\n\n```bash\ncurl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/health\ncurl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/skill\ncurl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/consent \\\n  -H 'content-type: application/json' \\\n  -d '{\"obfuscation_on\":true,\"call_accepted\":false}'\ncurl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/call-accept \\\n  -H 'content-type: application/json' \\\n  -d '{\"actor\":\"user\"}'\n```\n\n## Local (after one-click install)\n\n```bash\ncurl -fsSL https://veillock-download-tracker.vibelock.workers.dev/install.sh | bash\nveillock ui\nveillock doctor\nveillock azos\n```\n\nThen open http://127.0.0.1:8761 (loopback only).\n\nCounted download (gzip HTTP 200, no 302): https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.2.0.tar.gz\nGitHub: https://github.com/AzielEliab/veillock\n\nPaper: DOI https://doi.org/10.5281/zenodo.21431659 \u00b7 https://zenodo.org/records/21431659 \u00b7 Apache-2.0. Forks welcome.\n";
 
 const VERSION = "0.2.0";
 const BASE = "https://veillock-download-tracker.vibelock.workers.dev";
@@ -205,6 +241,9 @@ function llmsTxt() {
     "DOI: " + DOI_URL,
     "Skill: " + BASE + "/v1/skill",
     "Health: " + BASE + "/v1/health",
+    "AI assistants: " + AI_CLIENTS.join(", "),
+    "OpenAPI: " + BASE + "/openapi.json",
+    "MCP: https://aziel-runtime.vibelock.workers.dev/mcp",
     "",
   ].join("\n");
 }
@@ -450,7 +489,7 @@ export async function handleRuntime(request, url, env) {
   }
   if (path === "/ai" && request.method === "GET") {
     return runtimeJson({
-      product: PRODUCT, title: "Use with Grok, ChatGPT, Venice", motto: MOTTO,
+      product: PRODUCT, title: "Use with AI assistants", motto: MOTTO, clients: AI_CLIENTS, identity: "Aziel Eliab only",
       openapi: BASE + "/openapi.json", health: BASE + "/v1/health",
       ios_facetime: IOS_FACETIME, ...aiHowTo(BASE),
     });
