@@ -76,7 +76,7 @@ function aiHowTo(base) {
 }
 
 const PRODUCT = "veillock";
-const SKILL_MARKDOWN = "---\nname: VeilLock\ndescription: Use when calling VeilLock hosted /v1 or installing the local package. Consent-gated camera protection via AZ-OS. Author Aziel Eliab.\n---\n\n# VeilLock\n\nConsent-gated camera protection via AZ-OS. Author: **Aziel Eliab**.\n\n**THIS IS:** a privacy veil on the user's own camera and video. The feed is naturally obfuscated unless (a) the user turns obfuscation off, or (b) the user accepts a call through AZ-OS.\n\n**THIS IS NOT:** a VPN, Tor, anonymous relay, or a claim of untraceable origin. Hosted `/v1` does not increment downloads or views. Hosted AZ-OS halt is a token, not killing the caller OS.\n\nAlways send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent.\n\n## Call these URLs\n\n- Worker OpenAPI: https://veillock-download-tracker.vibelock.workers.dev/openapi.json\n- Catalog OpenAPI: https://aziel-runtime.vibelock.workers.dev/openapi.json\n- MCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`\n- Live skill (this markdown): `GET https://veillock-download-tracker.vibelock.workers.dev/v1/skill`\n- AZ-OS: https://azos-download-tracker.vibelock.workers.dev/v1/status\n\nOps (do **not** increment downloads or views):\n\n| Method | Path | What |\n|--------|------|------|\n| GET | `/v1/health` | Liveness. AZ-OS hook present. |\n| GET | `/v1/skill` | This markdown. |\n| POST | `/v1/pulse` | PulseCheck. Fail \u2192 halt/noise, never plaintext. |\n| POST | `/v1/obfuscate-preview` | Natural camera/video veil recipe. |\n| POST | `/v1/azos-hook` | Consent-gate status. |\n| POST | `/v1/call-accept` | User accepted a call through AZ-OS (receipt). |\n| POST | `/v1/consent` | Evaluate veil: default on; lift if user off or call accepted. |\n\nGrok: import OpenAPI as a custom tool. ChatGPT: GPT Actions. Venice: HTTP tools.\n\n## Example\n\n```bash\ncurl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/health\ncurl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/skill\ncurl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/consent \\\n  -H 'content-type: application/json' \\\n  -d '{\"obfuscation_on\":true,\"call_accepted\":false}'\ncurl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/call-accept \\\n  -H 'content-type: application/json' \\\n  -d '{\"actor\":\"user\"}'\n```\n\n## Local (after one-click install)\n\n```bash\ncurl -fsSL https://veillock-download-tracker.vibelock.workers.dev/install.sh | bash\nveillock ui\nveillock doctor\nveillock azos\n```\n\nThen open http://127.0.0.1:8761 (loopback only).\n\nCounted download (gzip HTTP 200, no 302): https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.2.0.tar.gz\nGitHub: https://github.com/AzielEliab/veillock\n\nPaper: DOI https://doi.org/10.5281/zenodo.21431659 \u00b7 https://zenodo.org/records/21431659 \u00b7 Apache-2.0. Forks welcome.\n";
+const SKILL_MARKDOWN = "---\nname: VeilLock\ndescription: Use when calling VeilLock hosted /v1 or installing the local package. Consent-gated camera protection via AZ-OS. Author Aziel Eliab.\n---\n\n# VeilLock\n\nConsent-gated camera protection via AZ-OS. Author: **Aziel Eliab**.\n\n**THIS IS:** a privacy veil on the user's own camera and video. The feed is naturally obfuscated unless (a) the user turns obfuscation off, or (b) the user accepts a call through AZ-OS.\n\n**THIS IS NOT:** a VPN, Tor, anonymous relay, or a claim of untraceable origin. Hosted `/v1` does not increment downloads or views. Hosted AZ-OS halt is a token, not killing the caller OS.\n\nAlways send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent.\n\n## Call these URLs\n\n- Worker OpenAPI: https://veillock-download-tracker.vibelock.workers.dev/openapi.json\n- Catalog OpenAPI: https://aziel-runtime.vibelock.workers.dev/openapi.json\n- MCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`\n- Live skill (this markdown): `GET https://veillock-download-tracker.vibelock.workers.dev/v1/skill`\n- AZ-OS: https://azos-download-tracker.vibelock.workers.dev/v1/status\n\nOps (do **not** increment downloads or views):\n\n| Method | Path | What |\n|--------|------|------|\n| GET | `/v1/health` | Liveness. AZ-OS hook present. |\n| GET | `/v1/skill` | This markdown. |\n| GET/POST | `/v1/apps` | Local-app steps. Does not inject into FaceTime, Zoom, Meet, Teams, or Skype. |\n| POST | `/v1/pulse` | PulseCheck. Fail \u2192 halt/noise, never plaintext. |\n| POST | `/v1/obfuscate-preview` | Natural camera/video veil recipe. |\n| POST | `/v1/azos-hook` | Consent-gate status. |\n| POST | `/v1/call-accept` | User accepted a call through AZ-OS (receipt). |\n| POST | `/v1/consent` | Evaluate veil: default on; lift if user off or call accepted. |\n\nGrok: import OpenAPI as a custom tool. ChatGPT: GPT Actions. Venice: HTTP tools.\n\n## Example\n\n```bash\ncurl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/health\ncurl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/skill\ncurl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/consent \\\n  -H 'content-type: application/json' \\\n  -d '{\"obfuscation_on\":true,\"call_accepted\":false}'\ncurl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/call-accept \\\n  -H 'content-type: application/json' \\\n  -d '{\"actor\":\"user\"}'\n```\n\n## Local (after one-click install)\n\n```bash\ncurl -fsSL https://veillock-download-tracker.vibelock.workers.dev/install.sh | bash\nveillock ui\nveillock doctor\nveillock azos\n```\n\nThen open http://127.0.0.1:8761 (loopback only).\n\nCounted download (gzip HTTP 200, no 302): https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.2.0.tar.gz\nGitHub: https://github.com/AzielEliab/veillock\n\nPaper: DOI https://doi.org/10.5281/zenodo.21431659 \u00b7 https://zenodo.org/records/21431659 \u00b7 Apache-2.0. Forks welcome.\n";
 
 const VERSION = "0.2.0";
 const BASE = "https://veillock-download-tracker.vibelock.workers.dev";
@@ -85,6 +85,137 @@ const IDENTITY = "consent-gated camera protection via AZ-OS";
 const IOS_FACETIME = "iOS FaceTime cannot pick a third-party camera.";
 const TETHER_NOTE = "Desktop tether stays local. Hosted /v1 is a consent receipt, not a virtual camera.";
 const AZOS_HOST = "https://azos-download-tracker.vibelock.workers.dev";
+const NO_INJECT = "VeilLock does not inject into FaceTime, Zoom, Meet, Teams, or Skype.";
+const LIMITATION =
+  "THIS IS: a privacy veil on the user's own camera and video, plus local-app steps. THIS IS NOT: a VPN, Tor, anonymous relay, call interceptor, or FaceTime/Zoom/Meet/Teams/Skype inject. YOUR camera/screen only.";
+const DOI = "10.5281/zenodo.21431659";
+const DOI_URL = "https://doi.org/10.5281/zenodo.21431659";
+const ZENODO = "https://zenodo.org/records/21431659";
+const GITHUB = "https://github.com/AzielEliab/veillock";
+
+const APP_GUIDES = {
+  zoom: [
+    "Use YOUR camera/screen on this device only.",
+    "VeilLock does not inject into Zoom.",
+    "Apply the local veil (virtual camera / screen overlay) from the local package if you want obfuscation.",
+    "In Zoom desktop: Settings → Video → Camera → VeilLock.",
+    "Hosted / in-process ops return a consent receipt and recipe, not pixels.",
+  ],
+  meet: [
+    "Use YOUR camera/screen on this device only.",
+    "VeilLock does not inject into Google Meet.",
+    "Apply the local veil from the local package.",
+    "In Meet (desktop browser): More → Settings → Video → Camera → VeilLock.",
+  ],
+  teams: [
+    "Use YOUR camera/screen on this device only.",
+    "VeilLock does not inject into Microsoft Teams.",
+    "Apply the local veil from the local package.",
+    "In Teams desktop: Settings → Devices → Camera → VeilLock.",
+  ],
+  facetime: [
+    "iOS FaceTime cannot pick a third-party camera.",
+    "VeilLock does not inject into FaceTime.",
+    "Use YOUR device camera/screen only.",
+    "Mac FaceTime can choose Video → VeilLock after the local tether is running.",
+  ],
+  skype: [
+    "Use YOUR camera/screen on this device only.",
+    "VeilLock does not inject into Skype.",
+    "Apply the local veil from the local package.",
+    "In Skype desktop: Settings → Audio & Video → Camera → VeilLock.",
+  ],
+  camera: [
+    "Use YOUR camera on this device only.",
+    "Hosted VeilLock returns a consent receipt and veil recipe, not camera pixels.",
+    "Install the local package to advertise a virtual camera named VeilLock.",
+    NO_INJECT,
+  ],
+  screen: [
+    "Use YOUR screen on this device only.",
+    "Hosted /v1 is a consent receipt, not a screen capture.",
+    "The local package can veil this display. Call apps still choose the camera.",
+    NO_INJECT,
+  ],
+};
+
+export function appsResult(src) {
+  const raw = src && typeof src === "object" ? src : {};
+  const app = String(raw.app || raw.name || "").toLowerCase().trim();
+  const names = ["zoom", "meet", "teams", "facetime", "skype"];
+  const extra = app === "camera" || app === "screen" ? [app] : [];
+  const pick = names.includes(app) ? [app] : names;
+  const selected = [...pick, ...extra].filter((name, i, arr) => arr.indexOf(name) === i);
+  const apps = selected.map((name) => ({
+    app: name,
+    inject: false,
+    your_device_only: true,
+    steps: APP_GUIDES[name] || APP_GUIDES.camera,
+  }));
+  return {
+    product: PRODUCT,
+    version: VERSION,
+    inject: false,
+    your_device_only: true,
+    limitation: LIMITATION,
+    apps,
+    note: "Local-app steps only. " + NO_INJECT,
+    ios_facetime: IOS_FACETIME,
+    author: "Aziel Eliab",
+  };
+}
+
+export function citeDoc() {
+  return {
+    author: "Aziel Eliab",
+    title: "VeilLock",
+    one_line: "Live-stream encryption of visual output before it reaches any external display, by Aziel Eliab.",
+    github: GITHUB,
+    download: BASE + "/download",
+    homepage: BASE + "/",
+    doi: DOI,
+    doi_url: DOI_URL,
+    zenodo: ZENODO,
+    license: "Apache-2.0",
+    catalog: "https://aziel-runtime.vibelock.workers.dev/",
+    version: VERSION,
+    identity: "Aziel Eliab",
+  };
+}
+
+function llmsTxt() {
+  return [
+    "# VeilLock",
+    "",
+    "Author: Aziel Eliab",
+    "Identity: Aziel Eliab only",
+    "License: Apache-2.0. Forks welcome.",
+    "Version: " + VERSION,
+    "",
+    MOTTO,
+    LIMITATION,
+    NO_INJECT,
+    IOS_FACETIME,
+    "",
+    "Homepage: " + BASE + "/",
+    "Download (counted): " + BASE + "/download?asset=veillock-0.2.0.tar.gz",
+    "Install: curl -fsSL " + BASE + "/install.sh | bash",
+    "GitHub: " + GITHUB,
+    "Cite: " + BASE + "/cite.json",
+    "DOI: " + DOI_URL,
+    "Skill: " + BASE + "/v1/skill",
+    "Health: " + BASE + "/v1/health",
+    "",
+  ].join("\n");
+}
+
+function sitemapXml() {
+  const paths = ["/", "/cite.json", "/llms.txt", "/openapi.json", "/v1/skill", "/v1/health", "/ai"];
+  const urls = paths
+    .map((p) => "  <url><loc>" + BASE + p + "</loc><changefreq>weekly</changefreq></url>")
+    .join("\n");
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + urls + "\n</urlset>\n";
+}
 
 function mulberry32(a) {
   return function () {
@@ -261,6 +392,20 @@ function openapiDoc() {
           responses: { "200": { description: "Consent decision" } },
         },
       },
+      "/v1/apps": {
+        get: {
+          operationId: "veillockAppsGet",
+          summary: "Local-app steps. Does not inject into FaceTime, Zoom, Meet, Teams, or Skype.",
+          parameters: [{ name: "app", in: "query", schema: { type: "string" } }],
+          responses: { "200": { description: "Local-app steps" } },
+        },
+        post: {
+          operationId: "veillockApps",
+          summary: "Local-app steps. Does not inject into FaceTime, Zoom, Meet, Teams, or Skype.",
+          requestBody: { required: false, content: { "application/json": { schema: { type: "object", properties: { app: { type: "string" } } } } } },
+          responses: { "200": { description: "Local-app steps" } },
+        },
+      },
     },
   };
 }
@@ -271,7 +416,9 @@ export async function handleRuntime(request, url, env) {
     return runtimeJson({
       ok: true, product: PRODUCT, version: VERSION, motto: MOTTO, identity: IDENTITY,
       azos_hook: true, user_controls: true, obfuscation_default: true,
-      virtual_camera: false, plaintext: false, ios_facetime: IOS_FACETIME, tether: "local",
+      virtual_camera: false, plaintext: false, inject: false,
+      ios_facetime: IOS_FACETIME, tether: "local",
+      limitation: LIMITATION, author: "Aziel Eliab",
     });
   }
 
@@ -288,6 +435,19 @@ export async function handleRuntime(request, url, env) {
   }
 
   if (path === "/openapi.json" && request.method === "GET") return runtimeJson(openapiDoc());
+  if (path === "/cite.json" && request.method === "GET") return runtimeJson(citeDoc());
+  if (path === "/llms.txt" && request.method === "GET") {
+    return new Response(llmsTxt(), {
+      status: 200,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=300", ...runtimeCors() },
+    });
+  }
+  if (path === "/sitemap.xml" && request.method === "GET") {
+    return new Response(sitemapXml(), {
+      status: 200,
+      headers: { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=300", ...runtimeCors() },
+    });
+  }
   if (path === "/ai" && request.method === "GET") {
     return runtimeJson({
       product: PRODUCT, title: "Use with Grok, ChatGPT, Venice", motto: MOTTO,
@@ -301,6 +461,8 @@ export async function handleRuntime(request, url, env) {
       identity: IDENTITY,
       endpoints: [
         "GET /v1/health",
+        "GET /v1/apps",
+        "POST /v1/apps",
         "POST /v1/pulse",
         "POST /v1/obfuscate-preview",
         "POST /v1/azos-hook",
@@ -308,6 +470,7 @@ export async function handleRuntime(request, url, env) {
         "POST /v1/consent",
         "GET /openapi.json",
         "GET /ai",
+        "GET /cite.json",
       ],
     });
   }
@@ -355,6 +518,15 @@ export async function handleRuntime(request, url, env) {
       note: "You control the veil. Hosted receipt only. " + TETHER_NOTE,
     });
   }
+  if (path === "/v1/apps" && (request.method === "GET" || request.method === "POST")) {
+    let body = {};
+    try { body = await readJsonBody(request); } catch (e) { return runtimeJson({ ok: false, error: e.message }, e.status || 400); }
+    const app = body.app || url.searchParams.get("app");
+    return runtimeJson({
+      ok: true,
+      ...appsResult({ app }),
+    });
+  }
   if (path === "/v1/call-accept" && request.method === "POST") {
     let body = {};
     try { body = await readJsonBody(request); } catch (e) { return runtimeJson({ ok: false, error: e.message }, e.status || 400); }
@@ -370,7 +542,7 @@ export async function handleRuntime(request, url, env) {
       note: "Consent receipt: you accepted a call through AZ-OS. Veil lifted for this session. " + TETHER_NOTE,
     });
   }
-  if (path === "/v1/pulse" || path === "/v1/obfuscate-preview" || path === "/v1/azos-hook" || path === "/v1/call-accept" || path === "/v1/consent") {
+  if (path === "/v1/pulse" || path === "/v1/obfuscate-preview" || path === "/v1/azos-hook" || path === "/v1/call-accept" || path === "/v1/consent" || path === "/v1/apps") {
     return runtimeJson({ error: "method not allowed" }, 405);
   }
   if (path.startsWith("/v1/")) return runtimeJson({ error: "not found", product: PRODUCT }, 404);
