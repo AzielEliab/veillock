@@ -7,6 +7,7 @@ import { renderHomepage } from "./homepage.js";
  * GET  /download?repo=AzielEliab/veillock&tag=latest&asset=...
  *      increments KV, 302 to the GitHub release asset
  *      (default https://github.com/AzielEliab/veillock/releases)
+ * GET  /count   JSON {project, views, downloads, total}
  * GET  /stats   JSON totals + per-repo + per-branch breakdown
  * POST /event   forks report a download {owner,repo,branch,fork,asset}
  *
@@ -171,6 +172,13 @@ async function collectStats(env) {
 
 
 
+export function countBody(stats) {
+  const views = Number(stats.views) || 0;
+  const downloads = Number(stats.downloads != null ? stats.downloads : stats.total) || 0;
+  const total = Number(stats.total) || 0;
+  return { project: PROJECT, views, downloads, total };
+}
+
 function totalKey() {
   return PROJECT + "|__total__";
 }
@@ -317,8 +325,7 @@ export default {
     }
 
     if (url.pathname === "/count" && request.method === "GET") {
-      const stats = await collectStats(env);
-      return json({ project: PROJECT, total: stats.total || 0 });
+      return json(countBody(await collectStats(env)));
     }
 
     if (url.pathname === "/stats" && request.method === "GET") {

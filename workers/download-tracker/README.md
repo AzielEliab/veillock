@@ -46,6 +46,7 @@ custom DNS is ready. This tree documents the intended public URL
 |--------|------|----------|
 | GET | `/` | Product UI: consent desk, PulseCheck, veil compose, call-app steps, counted download |
 | GET | `/download?repo=&tag=&asset=` | Increment KV, 302 to the GitHub asset (default: releases page) |
+| GET | `/count` | JSON `{project, views, downloads, total}` |
 | GET | `/stats` | JSON totals plus per-repo and per-branch breakdown |
 | POST | `/event` | A fork reports a download |
 
@@ -83,8 +84,12 @@ curl -X POST https://veillock-download-tracker.vibelock.workers.dev/event \
 
 ## Stats
 
-`GET /stats` returns `total`, `by_repo`, `by_branch`, `by_fork`, and a
-`breakdown` array so forks can read aggregates.
+`GET /count` returns `{project, views, downloads, total}`. Views are
+homepage loads; `downloads` and `total` are counted downloads (same
+number). `/v1` does not increment either.
+
+`GET /stats` returns `total`, `views`, `downloads`, `by_repo`, `by_branch`,
+`by_fork`, and a `breakdown` array so forks can read aggregates.
 
 ## CORS
 
