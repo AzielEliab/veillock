@@ -390,6 +390,31 @@ function openapiDoc() {
     },
     servers: [{ url: BASE }],
     paths: {
+      "/count": {
+        get: {
+          operationId: "veillockCount",
+          summary: "Isolated download/view counts. Does not increment.",
+          responses: {
+            "200": {
+              description: "{project, views, downloads, total}",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    required: ["project", "views", "downloads", "total"],
+                    properties: {
+                      project: { type: "string", const: "veillock" },
+                      views: { type: "integer" },
+                      downloads: { type: "integer" },
+                      total: { type: "integer" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       "/v1/health": { get: { operationId: "veillockHealth", summary: "Liveness. AZ-OS hook present.", responses: { "200": { description: "OK" } } } },
       "/v1/pulse": {
         post: {
