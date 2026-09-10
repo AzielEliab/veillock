@@ -45,7 +45,7 @@ Direct tarball (also counted):
 - Live count JSON: [https://veillock-download-tracker.vibelock.workers.dev/stats](https://veillock-download-tracker.vibelock.workers.dev/stats)
 - OpenAPI: [https://veillock-download-tracker.vibelock.workers.dev/openapi.json](https://veillock-download-tracker.vibelock.workers.dev/openapi.json)
 - Skill: [https://veillock-download-tracker.vibelock.workers.dev/v1/skill](https://veillock-download-tracker.vibelock.workers.dev/v1/skill)
-- Suite mesh proxy: [https://veillock-download-tracker.vibelock.workers.dev/v1/mesh](https://veillock-download-tracker.vibelock.workers.dev/v1/mesh) — default OFF; QNM live / locked / isolated
+- Suite mesh proxy: [https://veillock-download-tracker.vibelock.workers.dev/v1/mesh](https://veillock-download-tracker.vibelock.workers.dev/v1/mesh) — default OFF; QNM live / locked / isolated; QNS-CD-1.0 hub cite (photon QNS1 packet transfer; no public qnsd proxy)
 - One-click install: [https://veillock-download-tracker.vibelock.workers.dev/install.sh](https://veillock-download-tracker.vibelock.workers.dev/install.sh)
 - GitHub: [https://github.com/AzielEliab/veillock](https://github.com/AzielEliab/veillock)
 
@@ -304,7 +304,7 @@ Live HTTPS runtime on the download-tracker Worker (does **not** increment the do
 - OpenAPI 3.1: https://veillock-download-tracker.vibelock.workers.dev/openapi.json
 - Health: https://veillock-download-tracker.vibelock.workers.dev/v1/health
 - How to wire tools: https://veillock-download-tracker.vibelock.workers.dev/ai
-- MCP catalog: https://aziel-runtime.vibelock.workers.dev/mcp. Suite mesh `/v1/mesh/*` PROXY via `AZIEL_RUNTIME` (default OFF; QNM-BUILD-1.0 live|locked|isolated; no Node Gate). Catalog MCP `mesh_*` + FragGate `slug=mesh`.
+- MCP catalog: https://aziel-runtime.vibelock.workers.dev/mcp. Suite mesh `/v1/mesh/*` PROXY via `AZIEL_RUNTIME` (default OFF; QNM-BUILD-1.0 live|locked|isolated; QNS-CD-1.0 photon QNS1 packet transfer cross-map to [qnm-node](https://github.com/AzielEliab/qnm-node) + [aziel-runtime](https://github.com/AzielEliab/aziel-runtime); not a Softwares-tab product; no public qnsd proxy; no Node Gate). Catalog MCP `mesh_*` + FragGate `slug=mesh`.
 
 POST /v1/pulse {values}, POST /v1/obfuscate-preview {seed,width,height,source}, POST /v1/consent, POST /v1/call-accept, POST /v1/azos-hook. Desktop `tether` stays local. iOS FaceTime cannot pick a third-party cam. Default natural camera/video veil. Lift only if you turn obfuscation off or accept a call through AZ-OS. Pulse fail → halt/noise, never a plaintext claim.
 
