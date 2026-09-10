@@ -32,6 +32,16 @@ def test_mesh_contract_default_off_qnm_law() -> None:
     assert "anon_broadcast_publish_path: false" in MESH
     assert "Aziel Eliab" in MESH
     assert "code: extra.code || \"MESH-OK\"" in MESH or '"MESH-OK"' in MESH
+    assert 'QNS_CD_SPEC = "QNS-CD-1.0"' in MESH
+    assert "export const QNS_CD" in MESH
+    assert "photon QNS1 packet transfer" in MESH
+    assert "github.com/AzielEliab/qnm-node" in MESH
+    assert "github.com/AzielEliab/aziel-runtime" in MESH
+    assert "softwares_tab: false" in MESH
+    assert "public_qnsd_proxy: false" in MESH
+    assert "QNS-CD-1.0" in MESH
+    assert "No public qnsd proxy" in MESH or "no public qnsd proxy" in MESH.lower()
+    assert "/v1/qnsd" not in MESH
 
 
 def test_mesh_pointer_and_openapi_helpers() -> None:
@@ -40,6 +50,7 @@ def test_mesh_pointer_and_openapi_helpers() -> None:
     assert "export function parseMeshDoc" in MESH
     assert "export function emptyMesh" in MESH
     assert "export function alignLiveNodes" in MESH
+    assert "export function attachQnsCd" in MESH
     assert "fraggate_slug: MESH_SLUG" in MESH
     assert "veillock_mesh_" in MESH
 
@@ -87,6 +98,8 @@ def test_home_live_nodes_strip_no_node_gate() -> None:
     assert 'id="meshLine"' in HOMEPAGE
     assert "Live Nodes" in HOMEPAGE
     assert "QNM-BUILD-1.0" in HOMEPAGE
+    assert "QNS-CD-1.0" in HOMEPAGE
+    assert "no public qnsd proxy" in HOMEPAGE
     assert "No Node Gate" in HOMEPAGE
     assert "No auto-heal" in HOMEPAGE
     assert "Not an anonymity network" in HOMEPAGE
@@ -101,9 +114,15 @@ def test_home_live_nodes_strip_no_node_gate() -> None:
 def test_docs_advertise_mesh_proxy() -> None:
     assert "/v1/mesh" in README
     assert "/v1/mesh" in SKILL
+    assert "QNS-CD-1.0" in README
+    assert "QNS-CD-1.0" in SKILL
     assert "QNM-BUILD-1.0" in WORKER_README
+    assert "QNS-CD-1.0" in WORKER_README
     assert "AZIEL_RUNTIME" in WORKER_README
     assert "Live Nodes" in WORKER_README
     assert "MESH-OK" in WORKER_README
     assert "enabled: false" in WORKER_README
     assert "Aziel Eliab" in MESH
+    assert "QNS-CD-1.0" in RUNTIME
+    assert "attachQnsCd" in MESH
+    assert "qns_cd_spec" in MESH

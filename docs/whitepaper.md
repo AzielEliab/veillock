@@ -231,9 +231,12 @@ not a placed telephone call.
 
 The Worker homepage shows a suite Live Nodes strip. `/v1/mesh/*` PROXY
 to aziel-runtime. Suite mesh default OFF. QNM rollup is
-live|locked|isolated counts only. No Node Gate. No auto-heal. Not an
-anonymity network. Anon-broadcast is not a publish path. VeilLock
-remains consent-gated camera protection via AZ-OS.
+live|locked|isolated counts only. QNS-CD-1.0 (photon QNS1 packet
+transfer) is a hub cite / Worker mesh cross-map to qnm-node +
+aziel-runtime — not a Softwares-tab product and not a public qnsd
+proxy. No Node Gate. No auto-heal. Not an anonymity network.
+Anon-broadcast is not a publish path. VeilLock remains consent-gated
+camera protection via AZ-OS.
 
 ## What this is not
 
