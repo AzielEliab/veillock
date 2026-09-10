@@ -229,6 +229,12 @@ The hook is a local overlay receipt. Hosted AZ-OS halt is a token, not
 killing the caller OS. Hosted `/v1/call-accept` is a consent receipt,
 not a placed telephone call.
 
+The Worker homepage shows a suite Live Nodes strip. `/v1/mesh/*` PROXY
+to aziel-runtime. Suite mesh default OFF. QNM rollup is
+live|locked|isolated counts only. No Node Gate. No auto-heal. Not an
+anonymity network. Anon-broadcast is not a publish path. VeilLock
+remains consent-gated camera protection via AZ-OS.
+
 ## What this is not
 
 VeilLock is the consent-gated camera path described above. It does not
