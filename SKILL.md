@@ -1,6 +1,6 @@
 ---
 name: VeilLock
-description: Use when calling VeilLock hosted /v1 or installing the local package. Consent-gated camera protection via AZ-OS. Author Aziel Eliab.
+description: Use when calling VeilLock hosted /v1 or installing the local package. Dual surface: Worker /v1 + catalog MCP. This Worker /v1/mesh/* PROXY to aziel-runtime via AZIEL_RUNTIME. Suite mesh default OFF. QNM-BUILD-1.0 live|locked|isolated. No Node Gate. No auto-heal. Not anonymity. Consent-gated camera protection via AZ-OS. Author Aziel Eliab.
 ---
 
 # VeilLock
@@ -19,6 +19,7 @@ Always send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent
 - Catalog OpenAPI: https://aziel-runtime.vibelock.workers.dev/openapi.json
 - MCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`
 - Live skill (this markdown): `GET https://veillock-download-tracker.vibelock.workers.dev/v1/skill`
+- Suite mesh: `GET https://veillock-download-tracker.vibelock.workers.dev/v1/mesh` (PROXY; default OFF)
 - AZ-OS: https://azos-download-tracker.vibelock.workers.dev/v1/status
 
 Ops (do **not** increment downloads or views):
@@ -27,6 +28,9 @@ Ops (do **not** increment downloads or views):
 |--------|------|------|
 | GET | `/v1/health` | Liveness. AZ-OS hook present. |
 | GET | `/v1/skill` | This markdown. |
+| GET | `/v1/mesh` | PROXY suite mesh status. Default OFF. QNM live|locked|isolated. Never enables. |
+| GET | `/v1/mesh/nodes` | PROXY Live Nodes roster (5-minute presence). |
+| POST | `/v1/mesh/{enable,disable,join,heartbeat,leave,broadcast}` | PROXY. Bearer required to enable. No auto-heal. Anon-broadcast is not a publish path. |
 | GET/POST | `/v1/apps` | Local-app steps. Does not inject into FaceTime, Zoom, Meet, Teams, or Skype. |
 | POST | `/v1/pulse` | PulseCheck. Fail → halt/noise, never plaintext. |
 | POST | `/v1/obfuscate-preview` | Natural camera/video veil recipe. |
@@ -43,6 +47,7 @@ Identity is Aziel Eliab only.
 ```bash
 curl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/health
 curl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/skill
+curl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/mesh
 curl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/consent \
   -H 'content-type: application/json' \
   -d '{"obfuscation_on":true,"call_accepted":false}'
@@ -63,7 +68,7 @@ veillock doctor
 veillock azos
 ```
 
-Then open http://127.0.0.1:8761 (loopback only).
+Then open http://127.0.0.1:8761 (loopback only). Worker homepage Live Nodes strip polls `GET /v1/mesh` (default OFF).
 
 Counted download (gzip HTTP 200, no 302): https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.2.0.tar.gz
 GitHub: https://github.com/AzielEliab/veillock

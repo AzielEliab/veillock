@@ -1,3 +1,4 @@
+import { handleMeshApi } from "./mesh.js";
 import { handleRuntime } from "./runtime.js";
 import { renderHomepage } from "./homepage.js";
 
@@ -10,6 +11,7 @@ import { renderHomepage } from "./homepage.js";
  * GET  /count   JSON {project, views, downloads, total}
  * GET  /stats   JSON totals + per-repo + per-branch breakdown
  * POST /event   forks report a download {owner,repo,branch,fork,asset}
+ * /v1, /v1/mesh/* do not increment. Suite mesh PROXY via AZIEL_RUNTIME.
  *
  * KV binding DOWNLOADS. Keys: project|owner|repo|branch|fork
  * CORS *. No secrets in this tree.
@@ -26,8 +28,8 @@ const GITHUB_RELEASES = "https://github.com/AzielEliab/veillock/releases";
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET, POST, HEAD, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Accept, Authorization, X-Aziel-Runtime-Token, User-Agent",
   };
 }
 
@@ -301,6 +303,9 @@ export default {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
+
+    const mesh = await handleMeshApi(request, url, env);
+    if (mesh) return mesh;
 
     const runtime = await handleRuntime(request, url, env);
     if (runtime) return runtime;
