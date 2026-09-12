@@ -202,7 +202,7 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
 <main>
   <header>
     <div class="brandrow">
-      <img class="brandmark" src="/sigil.png" width="52" height="52" alt="Everblooming sigil — Aziel Eliab" decoding="async">
+      <img class="brandmark" src="/sigil.png" width="52" height="52" alt="" decoding="async">
       <div>
         <p class="eyebrow">Aziel Eliab · Apache-2.0</p>
         <h1>VeilLock</h1>
