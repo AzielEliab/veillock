@@ -48,20 +48,19 @@ The Worker serves the gzip itself (HTTP 200). GitHub releases are a mirror.
 - DOI: [10.5281/zenodo.21431659](https://doi.org/10.5281/zenodo.21431659)
 - Zenodo: [https://zenodo.org/records/21431659](https://zenodo.org/records/21431659)
 
-Isolated counter: Worker `veillock-download-tracker`, KV `VEILLOCK_DOWNLOADS`. `/v1` does not increment downloads.
+Isolated counter: Worker `veillock-download-tracker`, KV `VEILLOCK_DOWNLOADS`. Counted `/download` increments this counter. `/v1` leaves the counter unchanged.
 
 ## AZ-OS hook
 
 VeilLock hooks **AZ-OS** as the consent surface for the camera and video
 feed.
 
-- **Default:** natural camera/video veil (live-looking, not plaintext).
+- **Default:** natural camera/video veil (live-looking obfuscation).
 - **You turn obfuscation off:** the veil lifts.
 - **You accept a call through AZ-OS:** the veil lifts for that session.
 - **Call ends:** the veil returns unless you left obfuscation off.
 
-You control both paths. Hosted AZ-OS halt is a token, not killing this
-computer. In the local app, under Advanced: **Accept call through AZ-OS**,
+You control both paths. Hosted AZ-OS halt is a token. In the local app, under Advanced: **Accept call through AZ-OS**,
 **End call**, and **Keep the veil on**. CLI: `veillock azos`,
 `veillock tether --azos-accept --actor "your name"`,
 `veillock tether --obfuscation-off`.
@@ -92,9 +91,8 @@ Then pick **VeilLock** as the camera:
 `veillock apps` prints the same steps. Linux needs v4l2loopback labeled
 `VeilLock` (see that command). Default size is 640×480 @ 15 fps.
 
-Default public feed: a natural camera/video veil, not your plaintext
-camera. PulseCheck must PASS or the feed stays veiled (`HaltedError` /
-Phoenix) — never plaintext.
+Default public feed: a natural camera/video veil. PulseCheck must PASS
+or the feed stays veiled (`HaltedError` / Phoenix).
 
 Lift the veil (your choice):
 
@@ -116,9 +114,9 @@ Counted download: [https://veillock-download-tracker.vibelock.workers.dev/](http
 # → [https://veillock-download-tracker.vibelock.workers.dev/](https://veillock-download-tracker.vibelock.workers.dev/) ←
 
 The big button on that page is the download. The number next to it is
-**veillock only** — its own Worker and KV, not mixed with VibeLock or
-anything else. Clicking it increments the counter. Nobody reports
-anything. Forks that use the same link are counted too.
+**veillock only** — its own Worker and KV. Clicking it increments the
+counter. Nobody reports anything. Forks that use the same link are
+counted too.
 
 Direct tarball (also counted): [veillock-0.2.0.tar.gz](https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.2.0.tar.gz)
 
@@ -134,8 +132,7 @@ A local-first Flutter client lives in [`mobile/`](mobile/). Open that
 folder in Android Studio or Xcode through Flutter (`flutter create .`
 first if `android/` / `ios/` still hold the skeleton READMEs). Live
 camera preview, Private / Obfuscation / Broadcast. The overlay is a
-**visual obfuscation surface**, not AES-GCM — desktop remains the
-AES-256-GCM engine.
+**visual obfuscation surface**. Desktop remains the AES-256-GCM engine.
 
 Counted desktop download: [https://veillock-download-tracker.vibelock.workers.dev/](https://veillock-download-tracker.vibelock.workers.dev/)
 
@@ -170,10 +167,10 @@ Integrity: `PulseCheck.pci()` must return `"PASS"` or generation
 the session reboots, keys are reset, and encrypt/decrypt refuse
 plaintext until PCI PASSes.
 
-Modes: `private` (key not exported in the package), `broadcast`
+Modes: `private` (key stays with the operator), `broadcast`
 (HMAC-wrapped session key for authorized receivers), `obfuscation`
-(attackers see synthetic UI noise, not ciphertext snow and not
-plaintext).
+(attackers see synthetic UI noise; authorized decoders recover the
+sealed frames).
 
 Identifying metadata (window ids, application fingerprints, UI
 telemetry) is stripped before encrypt.
@@ -182,7 +179,7 @@ The engine seals frames the caller already holds. Camera and video
 leave as a natural veil unless you lift it.
 
 The design target is &lt;1 ms/frame for small frames (numpy +
-cryptography). This README does not invent benchmark numbers.
+cryptography). This README publishes the design target only.
 
 ## Install
 
@@ -228,8 +225,8 @@ veillock apps          # Zoom / Skype / FaceTime / Meet / Teams steps
 ```
 
 `encrypt` prints `session_key=<hex>` (and `receiver_secret=<hex>` in
-broadcast mode if you did not pass one). Private mode does **not**
-embed the key in `cipher.npz`.
+broadcast mode if you did not pass one). Private mode keeps the key
+out of `cipher.npz`.
 
 Library entry point:
 
@@ -266,7 +263,7 @@ python -m pytest -q
 
 Fixtures are synthetic. They cover roundtrip, wrong key, rotation
 forward-secrecy, PCI halt, Phoenix Loop, metadata scrubbing,
-obfuscation ≠ plaintext, ciphertext entropy, framebuffer zeroing,
+obfuscation seals the public feed, ciphertext entropy, framebuffer zeroing,
 the tether (mocked VideoCapture / pyvirtualcam; no camera), the AZ-OS
 hook, and the natural camera veil.
 
@@ -286,14 +283,14 @@ CONTRIBUTING.md     forks are first-class
 
 Works with ChatGPT (GPT Actions / OpenAI), Grok (xAI), Venice, Claude (Anthropic), Cursor (MCP), Glama (MCP), Perplexity, Microsoft Copilot / Bing, Google Gemini / Vertex, Mistral, Meta AI, Apple Intelligence surfaces, Amazon Q tooling, DuckAssist, You.com, Cohere, and other MCP/OpenAPI-capable assistants.
 
-Live HTTPS runtime on the download-tracker Worker (does **not** increment the download counter):
+Live HTTPS runtime on the download-tracker Worker (download counter stays unchanged):
 
 - OpenAPI 3.1: https://veillock-download-tracker.vibelock.workers.dev/openapi.json
 - Health: https://veillock-download-tracker.vibelock.workers.dev/v1/health
 - How to wire tools: https://veillock-download-tracker.vibelock.workers.dev/ai
-- MCP catalog: https://aziel-runtime.vibelock.workers.dev/mcp. Suite mesh `/v1/mesh/*` PROXY via `AZIEL_RUNTIME` (default OFF; QNM-BUILD-1.0 live|locked|isolated; QNS-CD-1.0 photon QNS1 packet transfer cross-map to [qnm-node](https://github.com/AzielEliab/qnm-node) + [aziel-runtime](https://github.com/AzielEliab/aziel-runtime); not a Softwares-tab product; no public qnsd proxy; no Node Gate). Catalog MCP `mesh_*` + FragGate `slug=mesh`.
+- MCP catalog: https://aziel-runtime.vibelock.workers.dev/mcp. Suite mesh `/v1/mesh/*` PROXY via `AZIEL_RUNTIME` (default OFF; QNM-BUILD-1.0 live|locked|isolated; QNS-CD-1.0 photon QNS1 packet transfer cross-map to [qnm-node](https://github.com/AzielEliab/qnm-node) + [aziel-runtime](https://github.com/AzielEliab/aziel-runtime)). Catalog MCP `mesh_*` + FragGate `slug=mesh`.
 
-POST /v1/pulse {values}, POST /v1/obfuscate-preview {seed,width,height,source}, POST /v1/consent, POST /v1/call-accept, POST /v1/azos-hook. Desktop `tether` stays local. iOS FaceTime cannot pick a third-party cam. Default natural camera/video veil. Lift only if you turn obfuscation off or accept a call through AZ-OS. Pulse fail → halt/noise, never a plaintext claim.
+POST /v1/pulse {values}, POST /v1/obfuscate-preview {seed,width,height,source}, POST /v1/consent, POST /v1/call-accept, POST /v1/azos-hook. Desktop `tether` stays local. Mac FaceTime can select VeilLock after the local tether is running. Default natural camera/video veil. Lift only if you turn obfuscation off or accept a call through AZ-OS. Pulse fail → halt/noise.
 
 **ChatGPT Actions:** GPT Editor → Actions → Import from URL → `https://veillock-download-tracker.vibelock.workers.dev/openapi.json` (no auth).
 

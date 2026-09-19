@@ -12,7 +12,7 @@ const DOI = "10.5281/zenodo.21431659";
 const DOI_URL = "https://doi.org/10.5281/zenodo.21431659";
 const ZENODO = "https://zenodo.org/records/21431659";
 const DESC =
-  "VeilLock is consent-gated camera protection via AZ-OS by Aziel Eliab. Your camera and video stay veiled unless you turn obfuscation off or accept a call through AZ-OS. VeilLock does not attach to a running FaceTime, Zoom, Meet, Teams, or Skype process.";
+  "VeilLock is consent-gated camera protection via AZ-OS by Aziel Eliab. Your camera and video stay veiled unless you turn obfuscation off or accept a call through AZ-OS. Local-app steps pick the VeilLock camera after the desktop tether is running.";
 
 function esc(value) {
   return String(value == null ? "" : value)
@@ -211,7 +211,7 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
     </div>
   </header>
 
-  <p class="banner" role="note"><strong>Honest limit.</strong> VeilLock does not attach to a running FaceTime, Zoom, Meet, Teams, or Skype process. iOS FaceTime cannot pick a third-party camera. This page is a consent desk and veil recipe — not a virtual camera and not a call interceptor. YOUR camera/screen only. You control the lift.</p>
+  <p class="banner" role="note"><strong>Your camera.</strong> This page is a consent desk and veil recipe. YOUR camera/screen only. You control the lift. After the desktop tether is running, pick the VeilLock camera in Zoom, FaceTime (Mac), Meet, Teams, or Skype. iPhone FaceTime cannot select a third-party camera.</p>
   <div class="statusbar" id="status-bar">
     <span class="chip" id="chip-health">Checking VeilLock…</span>
     <span class="chip warn">Hosted receipt · local tether</span>
@@ -219,23 +219,23 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
   </div>
   <div id="meshStrip" aria-label="Suite Live Nodes">
     <div class="live"><b id="meshLiveCount">0</b> Live Nodes</div>
-    <div id="meshLine">Suite mesh: off (default). QNM-BUILD-1.0 + QNS-CD-1.0. Not an anonymity network.</div>
+    <div id="meshLine">Suite mesh: off (default). QNM-BUILD-1.0 + QNS-CD-1.0.</div>
     <div class="rollup">live <b id="qnmLive">0</b> · locked <b id="qnmLocked">0</b> · isolated <b id="qnmIsolated">0</b></div>
-    <div>No Node Gate · No auto-heal · Aziel Eliab only</div>
+    <div>Operator bearer to enable · Aziel Eliab only</div>
     <div>
       <input id="meshBearer" type="text" maxlength="80" placeholder="bearer (required to enable)" aria-label="mesh bearer">
       <button id="meshEnable" type="button" title="Enable suite mesh. Declared bearer required. Default off.">Enable</button>
       <button id="meshDisable" type="button" title="Disable suite mesh (always allowed)">Disable</button>
       <button id="meshJoin" type="button" title="Join as veillock. Refused while mesh is OFF. No auto-join.">Join</button>
-      <button id="meshLeave" type="button" title="Leave this node. No auto-heal.">Leave</button>
+      <button id="meshLeave" type="button" title="Leave this node.">Leave</button>
     </div>
-    <p id="meshProducts">Catalog MCP mesh_* · FragGate slug=mesh · /v1/mesh/* PROXY · QNS-CD-1.0 cite · no public qnsd proxy · not AnonBroadcast · not AZMail ring · not a Node Gate</p>
+    <p id="meshProducts">Catalog MCP mesh_* · FragGate slug=mesh · /v1/mesh/* PROXY · QNS-CD-1.0 cite</p>
   </div>
 
   <section class="desk" aria-label="VeilLock workspace">
     <article class="card" id="consent-desk">
       <h2>Consent desk</h2>
-      <p class="help">The veil stays on unless you turn obfuscation off or accept a call through AZ-OS. Hosted AZ-OS halt is a token, not killing this computer.</p>
+      <p class="help">The veil stays on unless you turn obfuscation off or accept a call through AZ-OS. Hosted AZ-OS halt is a token.</p>
       <div class="veil-lamp on" id="veil-lamp">
         <div>
           <strong id="veil-title">Veil on</strong>
@@ -252,13 +252,13 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
       </div>
       <div class="result" id="consent-result">
         <h3>Waiting for you</h3>
-        <p>Toggle the veil, accept a call, or end it. The desk writes a consent receipt — not pixels.</p>
+        <p>Toggle the veil, accept a call, or end it. The desk writes a consent receipt.</p>
       </div>
     </article>
 
     <article class="card" id="pulse-desk">
       <h2>PulseCheck</h2>
-      <p class="help">If the pulse fails, the feed stays halted as noise. Never a plaintext claim.</p>
+      <p class="help">If the pulse fails, the feed stays halted as noise.</p>
       <div class="row">
         <button type="button" class="gold" id="pulse-live">Live pulse</button>
         <button type="button" class="ghost" id="pulse-dead">Dead pulse</button>
@@ -271,7 +271,7 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
 
     <article class="card wide" id="veil-compose">
       <h2>Compose a veil</h2>
-      <p class="help">Real hosted recipe: natural camera wash, or synthetic screen panels. Spatial camera pixels are not copied.</p>
+      <p class="help">Real hosted recipe: natural camera wash, or synthetic screen panels. Spatial camera pixels stay on-device.</p>
       <label for="veil-source">Source</label>
       <select id="veil-source">
         <option value="camera" selected>Your camera / video</option>
@@ -291,7 +291,7 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
 
     <article class="card wide" id="apps-desk">
       <h2>Call apps — your device only</h2>
-      <p class="help">These are local steps. VeilLock does not attach to an app that is already running. After install, the desktop tether can advertise a camera named VeilLock. Join and engulf planning run on the local desk (veillock ui at 127.0.0.1:8761). This hosted page does not join a call or register a camera.</p>
+      <p class="help">These are local steps. After install, the desktop tether can advertise a camera named VeilLock. Join and engulf planning run on the local desk (veillock ui at 127.0.0.1:8761).</p>
       <div class="apps" id="app-picks">
         <button type="button" class="ghost" data-app="zoom" aria-pressed="false">Zoom</button>
         <button type="button" class="ghost" data-app="meet" aria-pressed="false">Meet</button>
@@ -319,7 +319,7 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
     <pre id="install-cmd">${INSTALL_LINE}</pre>
     <p class="help">Then run: <code>veillock ui</code> and open http://127.0.0.1:8761 (this computer only).</p>
     <p class="meta">The download count ticks on the Download click. The Worker serves the gzip (HTTP 200). No 302 to GitHub. Forks using this same link are counted automatically. ${DEFAULT_ASSET} — ${n} counted.</p>
-    <p class="iso">Isolated counter: Worker <code>veillock-download-tracker</code>, project <code>veillock</code>, KV <code>VEILLOCK_DOWNLOADS</code>. Not mixed with any other product. /v1 does not increment downloads.</p>
+    <p class="iso">Isolated counter: Worker <code>veillock-download-tracker</code>, project <code>veillock</code>, KV <code>VEILLOCK_DOWNLOADS</code>. Counted /download increments this counter. /v1 leaves downloads unchanged.</p>
     <p class="meta">GitHub: stars ${stars} · forks ${forks} · watchers ${watchers}</p>
     <p class="meta">Paper: <a href="${DOI_URL}">doi:${DOI}</a> · <a href="${ZENODO}">Zenodo</a> · Apache-2.0 · Eliab, Aziel</p>
     <p class="meta"><a href="/stats">JSON stats</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/v1/mesh">/v1/mesh</a> · <a href="/v1/skill">Skill</a> · <a href="/ai">AI runtime</a> · <a href="${GITHUB}">GitHub</a> · <a href="${GITHUB_LATEST}">releases</a> · <a href="/cite.json">cite.json</a></p>
@@ -333,7 +333,7 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
     <p><a href="https://aziel-runtime.vibelock.workers.dev/">Catalog</a> · <a href="${GITHUB}">GitHub</a> · <a href="${HOST}/download">Download</a> · <a href="${HOST}/cite.json">cite.json</a></p>
     <p class="iso">Identity is Aziel Eliab only. Forks are welcome and always allowed. Apache-2.0.</p>
   </section>
-  <footer>VeilLock 0.2.0 · you control the veil · not a FaceTime inject · Aziel Eliab</footer>
+  <footer>VeilLock 0.2.0 · you control the veil · Aziel Eliab</footer>
 </main>
 <script>
 (function () {
@@ -388,7 +388,7 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
   }
   function consentCopy(data) {
     if (!data || !data.ok) return "The desk could not write a receipt.";
-    if (data.veil === "on") return "Camera and video stay protected. Hosted receipt only — not a virtual camera.";
+    if (data.veil === "on") return "Camera and video stay protected. Hosted receipt only.";
     if (data.reason && data.reason.indexOf("obfuscation") !== -1) return "You turned obfuscation off. The veil is lifted because you said so.";
     return "You accepted a call through AZ-OS. The veil is lifted for this session.";
   }
@@ -445,9 +445,9 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
     post("/v1/pulse", { values: values }).then(function (out) {
       var data = out.data || {};
       if (data.pci === "PASS") {
-        showResult("pulse-result", "pass", "Pulse PASS — " + label, "The public feed stays a veil (obfuscation), not plaintext. Pulse is alive.");
+        showResult("pulse-result", "pass", "Pulse PASS — " + label, "The public feed stays a veil (obfuscation). Pulse is alive.");
       } else {
-        showResult("pulse-result", "fail", "Pulse FAIL — halt / noise", "Generation halted. Noise only — never plaintext. " + (data.reason || "dead pulse") + ".");
+        showResult("pulse-result", "fail", "Pulse FAIL — halt / noise", "Generation halted. Noise only. " + (data.reason || "dead pulse") + ".");
       }
     }).catch(function () {
       showResult("pulse-result", "fail", "Pulse unreachable", "The desk could not reach PulseCheck.");
@@ -505,7 +505,7 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
       var data = out.data || {};
       paintRecipe(data);
       var title = data.pipeline === "synthetic_ui_noise" ? "Synthetic screen veil" : "Natural camera veil";
-      showResult("veil-result", "pass", title, data.description || "Recipe ready. Not plaintext.");
+      showResult("veil-result", "pass", title, data.description || "Recipe ready.");
     }).catch(function () {
       showResult("veil-result", "fail", "Recipe failed", "The desk could not compose a veil.");
     });
@@ -523,7 +523,7 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
       showResult("apps-result", "fail", "No steps", data && data.note ? data.note : "No local-app steps.");
       return;
     }
-    var title = chosen.app === "facetime" ? "FaceTime — no inject" : chosen.app + " — your device only";
+    var title = chosen.app + " — your device only";
     var items = (chosen.steps || []).map(function (s) { return "<li>" + s + "</li>"; }).join("");
     var note = data.note || data.limitation || "";
     el("apps-result").className = "result";
@@ -577,15 +577,15 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
           $("qnmLocked").textContent = String(locked);
           $("qnmIsolated").textContent = String(isolated);
           var line = $("meshLine");
-          if (on) line.textContent = "Suite mesh: on · live " + live + " · locked " + locked + " · isolated " + isolated + ". QNS-CD-1.0 cite. Not an anonymity network.";
-          else if (j.status === "unavailable" || (j.ok === false && j.error)) line.textContent = "Suite mesh: off (unavailable). QNM-BUILD-1.0 + QNS-CD-1.0. Not an anonymity network.";
-          else line.textContent = "Suite mesh: off (default). QNM-BUILD-1.0 + QNS-CD-1.0. Not an anonymity network.";
+          if (on) line.textContent = "Suite mesh: on · live " + live + " · locked " + locked + " · isolated " + isolated + ". QNS-CD-1.0 cite.";
+          else if (j.status === "unavailable" || (j.ok === false && j.error)) line.textContent = "Suite mesh: off (unavailable). QNM-BUILD-1.0 + QNS-CD-1.0.";
+          else line.textContent = "Suite mesh: off (default). QNM-BUILD-1.0 + QNS-CD-1.0.";
           var products = j.products_present || j.products || [];
           var names = Array.isArray(products) ? products.map(function (p) { return typeof p === "string" ? p : (p && (p.product || p.slug)) || ""; }).filter(Boolean) : [];
           var nodes = Array.isArray(j.nodes) ? j.nodes : [];
           var extra = names.length ? " · products " + names.join(", ") : (nodes.length ? " · " + nodes.length + " node labels" : "");
           var qns = (j.qns_cd_spec || (j.qns_cd && j.qns_cd.spec) || "QNS-CD-1.0");
-          $("meshProducts").textContent = "Catalog MCP mesh_* · FragGate slug=mesh · /v1/mesh/* PROXY · " + qns + " cite · no public qnsd proxy · not AnonBroadcast · not AZMail ring · not a Node Gate" + extra;
+          $("meshProducts").textContent = "Catalog MCP mesh_* · FragGate slug=mesh · /v1/mesh/* PROXY · " + qns + " cite" + extra;
         }
         async function meshGet(path) {
           var r = await fetch(path, { headers: { "user-agent": "Mozilla/5.0", accept: "application/json" } });

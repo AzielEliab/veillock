@@ -151,8 +151,7 @@ mismatches (default N = 3) — enters phoenix mode:
   plaintext frame is produced (`PhoenixError`, a `HaltedError`).
 - When PCI PASSes, the loop restores and a fresh session continues.
 
-This is a continuous reboot of the display session, not a process-killer
-and not an attack on a third-party machine.
+This is a continuous reboot of the display session.
 
 ---
 
@@ -311,23 +310,18 @@ VeilLock's identity is consent-gated camera protection via AZ-OS.
 4. PulseCheck failure still refuses plaintext even when the veil is
    lifted.
 
-The hook is a local overlay receipt. Hosted AZ-OS halt is a token, not
-killing the caller OS. Hosted `/v1/call-accept` is a consent receipt,
-not a placed telephone call.
+The hook is a local overlay receipt. Hosted AZ-OS halt is a token.
+Hosted `/v1/call-accept` is a consent receipt.
 
 The Worker homepage shows a suite Live Nodes strip. `/v1/mesh/*` PROXY
 to aziel-runtime. Suite mesh default OFF. QNM rollup is
 live|locked|isolated counts only. QNS-CD-1.0 (photon QNS1 packet
 transfer) is a hub cite / Worker mesh cross-map to qnm-node +
-aziel-runtime — not a Softwares-tab product and not a public qnsd
-proxy. No Node Gate. No auto-heal. Not an anonymity network.
-Anon-broadcast is not a publish path. VeilLock remains consent-gated
-camera protection via AZ-OS.
+aziel-runtime. VeilLock remains consent-gated camera protection via
+AZ-OS.
 
-## What this is not
+## Intended use
 
-VeilLock is the consent-gated camera path described above. It does not
-implement malware, credential theft, or exploits against other systems.
-Forks that add capture against unwitting users are outside this spec
-and outside the license grant’s intended use as a protective camera
-path. The user controls the veil.
+VeilLock is the consent-gated camera path described above. The engine
+seals frames the caller already holds. The user controls the veil.
+Forks stay a protective camera path.

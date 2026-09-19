@@ -86,7 +86,7 @@ curl -X POST https://veillock-download-tracker.vibelock.workers.dev/event \
 
 `GET /count` returns `{project, views, downloads, total}`. Views are
 homepage loads; `downloads` and `total` are counted downloads (same
-number). `/v1` does not increment either.
+number). `/v1` leaves both counters unchanged.
 
 `GET /stats` returns `total`, `views`, `downloads`, `by_repo`, `by_branch`,
 `by_fork`, and a `breakdown` array so forks can read aggregates.
@@ -97,21 +97,21 @@ All responses include `Access-Control-Allow-Origin: *`.
 
 The homepage is the live VeilLock desk: consent (veil on / lifted), PulseCheck,
 veil compose, and honest call-app steps. Counted `/download` and one-click
-install stay on the same page. Title is `VeilLock — Aziel Eliab`. `/v1` does
-not increment downloads.
+install stay on the same page. Title is `VeilLock — Aziel Eliab`. `/v1`
+leaves downloads unchanged.
 
 ## Use with AI assistants
 
 Works with ChatGPT (GPT Actions / OpenAI), Grok (xAI), Venice, Claude (Anthropic), Cursor (MCP), Glama (MCP), Perplexity, Microsoft Copilot / Bing, Google Gemini / Vertex, Mistral, Meta AI, Apple Intelligence surfaces, Amazon Q tooling, DuckAssist, You.com, Cohere, and other MCP/OpenAPI-capable assistants.
 
-This Worker also hosts the product runtime API (CORS `*`). `/v1` routes do **not** increment `DOWNLOADS`.
+This Worker also hosts the product runtime API (CORS `*`). `/v1` routes leave `DOWNLOADS` unchanged.
 
 | Method | Path | Notes |
 |--------|------|-------|
 | GET | `/v1/health` | Liveness. AZ-OS hook present. |
 | GET | `/openapi.json` | OpenAPI 3.1 (GPT Actions, Grok/xAI, Claude, Copilot, Gemini, and other OpenAPI imports) |
 | GET | `/ai` | How to wire AI assistants; MCP catalog |
-| GET/POST | `/v1/apps` | Local-app steps. Does not inject into FaceTime / Zoom / Meet / Teams / Skype |
+| GET/POST | `/v1/apps` | Local-app steps. Pick the VeilLock camera after the desktop tether is running |
 | GET | `/cite.json` | How to cite. Aziel Eliab only. Existing Zenodo DOI only. |
 | POST | `/v1/consent` | Veil decision (default on; user off or AZ-OS accept lifts) |
 | POST | `/v1/call-accept` | User-accepted call receipt |
@@ -124,7 +124,7 @@ MCP catalog: https://aziel-runtime.vibelock.workers.dev/mcp
 
 Identity is Aziel Eliab only.
 
-`/v1/mesh/*` PROXY to aziel-runtime suite mesh (`AZIEL_RUNTIME` / `https://aziel-runtime.vibelock.workers.dev`). Default OFF. QNM-BUILD-1.0 live|locked|isolated. QNS-CD-1.0 hub cite / Worker mesh cross-map (photon QNS1 packet transfer; local qnsd in [qnm-node](https://github.com/AzielEliab/qnm-node); runtime cites in [aziel-runtime](https://github.com/AzielEliab/aziel-runtime); AZInterface pair custody). Not a Softwares-tab product. No public qnsd proxy. No Node Gate. No auto-heal. Not anonymity. Human UI Live Nodes strip polls `GET /v1/mesh`.
+`/v1/mesh/*` PROXY to aziel-runtime suite mesh (`AZIEL_RUNTIME` / `https://aziel-runtime.vibelock.workers.dev`). Default OFF. QNM-BUILD-1.0 live|locked|isolated. QNS-CD-1.0 hub cite / Worker mesh cross-map (photon QNS1 packet transfer; local qnsd in [qnm-node](https://github.com/AzielEliab/qnm-node); runtime cites in [aziel-runtime](https://github.com/AzielEliab/aziel-runtime); AZInterface pair custody). Human UI Live Nodes strip polls `GET /v1/mesh`.
 
 Verify: `curl -sS -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/mesh/status` returns MESH-OK style JSON with `enabled: false` by default.
 

@@ -2,7 +2,7 @@
  * VeilLock hosted runtime (Cloudflare Worker).
  * Consent-gated camera protection via AZ-OS.
  * Natural camera/video veil unless the user turns it off or accepts a call.
- * Desktop tether stays local. iOS FaceTime cannot pick a third-party cam.
+ * Desktop tether stays local. Mac FaceTime can select VeilLock after the local tether is running.
  * /v1/mesh/* PROXY to aziel-runtime via AZIEL_RUNTIME (handled in index.js before this catch-all).
  */
 import { meshOpenApiPaths, meshPointer } from "./mesh.js";
@@ -108,24 +108,100 @@ function aiHowTo(base) {
     identity: "Aziel Eliab only",
     notes: [
       "GET /download still serves the gzip tarball and increments the counter.",
-      "/v1, /openapi.json, and /ai do not increment DOWNLOADS.",
+      "/v1, /openapi.json, and /ai leave DOWNLOADS unchanged.",
     ],
   };
 }
 
 const PRODUCT = "veillock";
-const SKILL_MARKDOWN = "---\nname: VeilLock\ndescription: Use when calling VeilLock hosted /v1 or installing the local package. Dual surface: Worker /v1 + catalog MCP. This Worker /v1/mesh/* PROXY to aziel-runtime via AZIEL_RUNTIME. Suite mesh default OFF. QNM-BUILD-1.0 live|locked|isolated. QNS-CD-1.0 hub cite / Worker mesh cross-map (photon QNS1 packet transfer; qnm-node qnsd + aziel-runtime). Not a Softwares-tab product. No public qnsd proxy. No Node Gate. No auto-heal. Not anonymity. Consent-gated camera protection via AZ-OS. Author Aziel Eliab.\n---\n\n# VeilLock\n\nConsent-gated camera protection via AZ-OS. Author: **Aziel Eliab**.\n\n**THIS IS:** a privacy veil on the user's own camera and video. The feed is naturally obfuscated unless (a) the user turns obfuscation off, or (b) the user accepts a call through AZ-OS.\n\n**THIS IS NOT:** a VPN, Tor, anonymous relay, or a claim of untraceable origin. Hosted `/v1` does not increment downloads or views. Hosted AZ-OS halt is a token, not killing the caller OS.\n\nAlways send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent.\n\n## Call these URLs\n\n- Worker OpenAPI: https://veillock-download-tracker.vibelock.workers.dev/openapi.json\n- Catalog OpenAPI: https://aziel-runtime.vibelock.workers.dev/openapi.json\n- MCP: `POST https://aziel-runtime.vibelock.workers.dev/mcp`\n- Live skill (this markdown): `GET https://veillock-download-tracker.vibelock.workers.dev/v1/skill`\n- Suite mesh: `GET https://veillock-download-tracker.vibelock.workers.dev/v1/mesh` (PROXY; default OFF; QNS-CD-1.0 cite)\n- AZ-OS: https://azos-download-tracker.vibelock.workers.dev/v1/status\n\nOps (do **not** increment downloads or views):\n\n| Method | Path | What |\n|--------|------|------|\n| GET | `/v1/health` | Liveness. AZ-OS hook present. |\n| GET | `/v1/skill` | This markdown. |\n| GET | `/v1/mesh` | PROXY suite mesh status. Default OFF. QNM live|locked|isolated. QNS-CD-1.0 cross-map (photon QNS1). Never enables. No public qnsd proxy. |\n| GET | `/v1/mesh/nodes` | PROXY Live Nodes roster (5-minute presence). Payload includes QNS-CD-1.0 cite. |\n| POST | `/v1/mesh/{enable,disable,join,heartbeat,leave,broadcast}` | PROXY. Bearer required to enable. No auto-heal. Anon-broadcast is not a publish path. |\n| GET/POST | `/v1/apps` | Local-app steps. Does not inject into FaceTime, Zoom, Meet, Teams, or Skype. |\n| POST | `/v1/pulse` | PulseCheck. Fail \u2192 halt/noise, never plaintext. |\n| POST | `/v1/obfuscate-preview` | Natural camera/video veil recipe. |\n| POST | `/v1/azos-hook` | Consent-gate status. |\n| POST | `/v1/call-accept` | User accepted a call through AZ-OS (receipt). |\n| POST | `/v1/consent` | Evaluate veil: default on; lift if user off or call accepted. |\n\nWorks with ChatGPT (GPT Actions / OpenAI), Grok (xAI), Venice, Claude (Anthropic), Cursor (MCP), Glama (MCP), Perplexity, Microsoft Copilot / Bing, Google Gemini / Vertex, Mistral, Meta AI, Apple Intelligence surfaces, Amazon Q tooling, DuckAssist, You.com, Cohere, and other MCP/OpenAPI-capable assistants. ChatGPT: GPT Actions (import OpenAPI). Grok / xAI: import OpenAPI as a custom tool. Venice: HTTP tools from the spec. Claude: OpenAPI tool or MCP. Cursor / Glama: MCP catalog. Other OpenAPI/MCP assistants: same Worker OpenAPI or MCP URL. Catalog MCP `mesh_*` + FragGate `slug=mesh`. Suite mesh default OFF. QNM-BUILD-1.0 live|locked|isolated. QNS-CD-1.0 hub cite (photon QNS1). Not a Softwares-tab product. No public qnsd proxy. No Node Gate. No auto-heal. Not anonymity.\n\nIdentity is Aziel Eliab only.\n\n## Example\n\n```bash\ncurl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/health\ncurl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/skill\ncurl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/mesh\ncurl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/consent \\\n  -H 'content-type: application/json' \\\n  -d '{\"obfuscation_on\":true,\"call_accepted\":false}'\ncurl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/call-accept \\\n  -H 'content-type: application/json' \\\n  -d '{\"actor\":\"user\"}'\n```\n\n## Local (after one-click install)\n\n```bash\ncurl -fsSL https://veillock-download-tracker.vibelock.workers.dev/install.sh | bash\nveillock ui\nveillock doctor\nveillock azos\n```\n\nThen open http://127.0.0.1:8761 (loopback only). Worker homepage Live Nodes strip polls `GET /v1/mesh` (default OFF; QNS-CD-1.0 cite; no public qnsd proxy).\n\nCounted download (gzip HTTP 200, no 302): https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.2.0.tar.gz\nGitHub: https://github.com/AzielEliab/veillock\n\nPaper: DOI https://doi.org/10.5281/zenodo.21431659 \u00b7 https://zenodo.org/records/21431659 \u00b7 Apache-2.0. Forks welcome.\n";
+const SKILL_MARKDOWN = `---
+name: VeilLock
+description: Use when calling VeilLock hosted /v1 or installing the local package. Dual surface: Worker /v1 + catalog MCP. This Worker /v1/mesh/* PROXY to aziel-runtime via AZIEL_RUNTIME. Suite mesh default OFF. QNM-BUILD-1.0 live|locked|isolated. QNS-CD-1.0 hub cite / Worker mesh cross-map (photon QNS1 packet transfer; qnm-node qnsd + aziel-runtime). Consent-gated camera protection via AZ-OS. Author Aziel Eliab.
+---
+
+# VeilLock
+
+Consent-gated camera protection via AZ-OS. Author: **Aziel Eliab**.
+
+**THIS IS:** a privacy veil on the user's own camera and video. The feed is naturally obfuscated unless (a) the user turns obfuscation off, or (b) the user accepts a call through AZ-OS.
+
+Hosted \`/v1\` leaves download and view counters unchanged. Hosted AZ-OS halt is a token.
+
+Always send \`User-Agent: Mozilla/5.0\`. Cloudflare Workers may 403 an empty agent.
+
+## Call these URLs
+
+- Worker OpenAPI: https://veillock-download-tracker.vibelock.workers.dev/openapi.json
+- Catalog OpenAPI: https://aziel-runtime.vibelock.workers.dev/openapi.json
+- MCP: \`POST https://aziel-runtime.vibelock.workers.dev/mcp\`
+- Live skill (this markdown): \`GET https://veillock-download-tracker.vibelock.workers.dev/v1/skill\`
+- Suite mesh: \`GET https://veillock-download-tracker.vibelock.workers.dev/v1/mesh\` (PROXY; default OFF; QNS-CD-1.0 cite)
+- AZ-OS: https://azos-download-tracker.vibelock.workers.dev/v1/status
+
+Ops (download and view counters stay unchanged):
+
+| Method | Path | What |
+|--------|------|------|
+| GET | \`/v1/health\` | Liveness. AZ-OS hook present. |
+| GET | \`/v1/skill\` | This markdown. |
+| GET | \`/v1/mesh\` | PROXY suite mesh status. Default OFF. QNM live|locked|isolated. QNS-CD-1.0 cross-map (photon QNS1). GET leaves radios as they are. |
+| GET | \`/v1/mesh/nodes\` | PROXY Live Nodes roster (5-minute presence). Payload includes QNS-CD-1.0 cite. |
+| POST | \`/v1/mesh/{enable,disable,join,heartbeat,leave,broadcast}\` | PROXY. Bearer required to enable. Broadcast returns a SHA-256 receipt. |
+| GET/POST | \`/v1/apps\` | Local-app steps. Pick the VeilLock camera in FaceTime (Mac), Zoom, Meet, Teams, or Skype after the desktop tether is running. |
+| POST | \`/v1/pulse\` | PulseCheck. Fail → halt/noise. |
+| POST | \`/v1/obfuscate-preview\` | Natural camera/video veil recipe. |
+| POST | \`/v1/azos-hook\` | Consent-gate status. |
+| POST | \`/v1/call-accept\` | User accepted a call through AZ-OS (receipt). |
+| POST | \`/v1/consent\` | Evaluate veil: default on; lift if user off or call accepted. |
+
+Works with ChatGPT (GPT Actions / OpenAI), Grok (xAI), Venice, Claude (Anthropic), Cursor (MCP), Glama (MCP), Perplexity, Microsoft Copilot / Bing, Google Gemini / Vertex, Mistral, Meta AI, Apple Intelligence surfaces, Amazon Q tooling, DuckAssist, You.com, Cohere, and other MCP/OpenAPI-capable assistants. ChatGPT: GPT Actions (import OpenAPI). Grok / xAI: import OpenAPI as a custom tool. Venice: HTTP tools from the spec. Claude: OpenAPI tool or MCP. Cursor / Glama: MCP catalog. Other OpenAPI/MCP assistants: same Worker OpenAPI or MCP URL.
+
+Identity is Aziel Eliab only.
+
+## Example
+
+\`\`\`bash
+curl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/health
+curl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/skill
+curl -s -A 'Mozilla/5.0' https://veillock-download-tracker.vibelock.workers.dev/v1/mesh
+curl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/consent \\
+  -H 'content-type: application/json' \\
+  -d '{"obfuscation_on":true,"call_accepted":false}'
+curl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/call-accept \\
+  -H 'content-type: application/json' \\
+  -d '{"actor":"user"}'
+curl -s -A 'Mozilla/5.0' -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/apps \\
+  -H 'content-type: application/json' \\
+  -d '{"app":"facetime"}'
+\`\`\`
+
+## Local (after one-click install)
+
+\`\`\`bash
+curl -fsSL https://veillock-download-tracker.vibelock.workers.dev/install.sh | bash
+veillock ui
+veillock doctor
+veillock azos
+\`\`\`
+
+Then open http://127.0.0.1:8761 (loopback only). Worker homepage Live Nodes strip polls \`GET /v1/mesh\` (default OFF; QNS-CD-1.0 cite).
+
+Counted download (gzip HTTP 200, no 302): https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.2.0.tar.gz
+GitHub: https://github.com/AzielEliab/veillock
+
+Paper: DOI https://doi.org/10.5281/zenodo.21431659 · https://zenodo.org/records/21431659 · Apache-2.0. Forks welcome.
+`;
 
 const VERSION = "0.2.0";
 const BASE = "https://veillock-download-tracker.vibelock.workers.dev";
 const MOTTO = "Consent-gated camera protection via AZ-OS.";
 const IDENTITY = "consent-gated camera protection via AZ-OS";
-const IOS_FACETIME = "iOS FaceTime cannot pick a third-party camera.";
-const TETHER_NOTE = "Desktop tether stays local. Hosted /v1 is a consent receipt, not a virtual camera.";
+const IOS_FACETIME = "Mac FaceTime can select VeilLock after the local tether is running.";
+const TETHER_NOTE = "Desktop tether stays local. Hosted /v1 is a consent receipt.";
 const AZOS_HOST = "https://azos-download-tracker.vibelock.workers.dev";
-const NO_INJECT = "VeilLock does not attach to a running FaceTime, Zoom, Meet, Teams, or Skype process. This worker does not register a camera. macOS and iOS are not engulfed. A local Windows 11 helper can register a user-mode camera; this worker does not.";
+const LOCAL_STEPS = "Local-app steps: pick the VeilLock camera in Zoom, FaceTime (Mac), Meet, Teams, or Skype after the desktop tether is running.";
 const LIMITATION =
-  "THIS IS: a privacy veil on the user's own camera and video, plus local-app steps. THIS IS NOT: a VPN, Tor, anonymous relay, or an attach to a running FaceTime/Zoom/Meet/Teams/Skype process. YOUR camera/screen only.";
+  "THIS IS: a privacy veil on the user's own camera and video, plus local-app steps. YOUR camera/screen only.";
 const DOI = "10.5281/zenodo.21431659";
 const DOI_URL = "https://doi.org/10.5281/zenodo.21431659";
 const ZENODO = "https://zenodo.org/records/21431659";
@@ -134,46 +210,41 @@ const GITHUB = "https://github.com/AzielEliab/veillock";
 const APP_GUIDES = {
   zoom: [
     "Use YOUR camera/screen on this device only.",
-    "VeilLock does not attach to a running Zoom process.",
     "Apply the local veil (virtual camera / screen overlay) from the local package if you want obfuscation.",
     "In Zoom desktop: Settings → Video → Camera → VeilLock.",
-    "Hosted / in-process ops return a consent receipt and recipe, not pixels.",
+    "Hosted / in-process ops return a consent receipt and recipe.",
   ],
   meet: [
     "Use YOUR camera/screen on this device only.",
-    "VeilLock does not attach to a running Google Meet process. The Chromium extension wraps getUserMedia instead.",
-    "Apply the local veil from the local package.",
+    "The Chromium extension wraps getUserMedia. Apply the local veil from the local package.",
     "In Meet (desktop browser): More → Settings → Video → Camera → VeilLock.",
   ],
   teams: [
     "Use YOUR camera/screen on this device only.",
-    "VeilLock does not attach to a running Microsoft Teams process.",
     "Apply the local veil from the local package.",
     "In Teams desktop: Settings → Devices → Camera → VeilLock.",
   ],
   facetime: [
     "iOS FaceTime cannot pick a third-party camera.",
-    "VeilLock does not inject into FaceTime. Apple-signed FaceTime cannot be injected into.",
     "Use YOUR device camera/screen only.",
     "Mac FaceTime can choose Video → VeilLock after the local tether is running.",
   ],
   skype: [
     "Use YOUR camera/screen on this device only.",
-    "VeilLock does not attach to a running Skype process.",
     "Apply the local veil from the local package.",
     "In Skype desktop: Settings → Audio & Video → Camera → VeilLock.",
   ],
   camera: [
     "Use YOUR camera on this device only.",
-    "Hosted VeilLock returns a consent receipt and veil recipe, not camera pixels.",
+    "Hosted VeilLock returns a consent receipt and veil recipe.",
     "Install the local package to advertise a virtual camera named VeilLock.",
-    NO_INJECT,
+    LOCAL_STEPS,
   ],
   screen: [
     "Use YOUR screen on this device only.",
-    "Hosted /v1 is a consent receipt, not a screen capture.",
+    "Hosted /v1 is a consent receipt.",
     "The local package can veil this display. Call apps still choose the camera.",
-    NO_INJECT,
+    LOCAL_STEPS,
   ],
 };
 
@@ -370,7 +441,7 @@ export function appsResult(src) {
     your_device_only: true,
     limitation: LIMITATION,
     apps,
-    note: "Local-app steps only. " + NO_INJECT,
+    note: "Local-app steps only. " + LOCAL_STEPS,
     ios_facetime: IOS_FACETIME,
     platform_limits: PLATFORM_LIMITS,
     call_video: "keyed visual scramble (obfuscation, not AES-256-GCM)",
@@ -408,7 +479,7 @@ function llmsTxt() {
     "",
     MOTTO,
     LIMITATION,
-    NO_INJECT,
+    LOCAL_STEPS,
     IOS_FACETIME,
     "",
     "Homepage: " + BASE + "/",
@@ -419,7 +490,7 @@ function llmsTxt() {
     "DOI: " + DOI_URL,
     "Skill: " + BASE + "/v1/skill",
     "Health: " + BASE + "/v1/health",
-    "Mesh: " + BASE + "/v1/mesh (PROXY to aziel-runtime; default OFF; QNM-BUILD-1.0 + QNS-CD-1.0; no public qnsd proxy)",
+    "Mesh: " + BASE + "/v1/mesh (PROXY to aziel-runtime; default OFF; QNM-BUILD-1.0 + QNS-CD-1.0)",
     "AI assistants: " + AI_CLIENTS.join(", "),
     "OpenAPI: " + BASE + "/openapi.json",
     "MCP: https://aziel-runtime.vibelock.workers.dev/mcp",
@@ -553,8 +624,8 @@ async function obfuscateRecipe(body) {
     background: bg,
     rectangles: camera ? [] : rectangles,
     description: camera
-      ? "Natural camera/video veil recipe (soft wash, grain, live-looking). Not plaintext and not GCM snow. Spatial camera pixels are not copied."
-      : "Synthetic UI-noise recipe (fake windows / panels). Not plaintext and not GCM snow.",
+      ? "Natural camera/video veil recipe (soft wash, grain, live-looking). Spatial camera pixels stay on-device."
+      : "Synthetic UI-noise recipe (fake windows / panels). Authorized decoders recover the sealed frames.",
   };
 }
 
@@ -565,14 +636,14 @@ function openapiDoc() {
       title: "VeilLock Runtime API",
       version: VERSION,
       summary: MOTTO,
-      description: "Consent-gated camera protection via AZ-OS. Natural camera/video veil unless the user turns it off or accepts a call. " + IOS_FACETIME + " Suite mesh /v1/mesh/* PROXY to aziel-runtime (AZIEL_RUNTIME). Default OFF. QNM-BUILD-1.0 live|locked|isolated. QNS-CD-1.0 photon QNS1 packet transfer is a hub cite / Worker mesh cross-map (not a Softwares-tab product; no public qnsd proxy). No Node Gate. No auto-heal. Not anonymity. Aziel Eliab only.",
+      description: "Consent-gated camera protection via AZ-OS. Natural camera/video veil unless the user turns it off or accepts a call. " + IOS_FACETIME + " Suite mesh /v1/mesh/* PROXY to aziel-runtime (AZIEL_RUNTIME). Default OFF. QNM-BUILD-1.0 live|locked|isolated. QNS-CD-1.0 photon QNS1 packet transfer is a hub cite / Worker mesh cross-map. Aziel Eliab only.",
     },
     servers: [{ url: BASE }],
     paths: {
       "/count": {
         get: {
           operationId: "veillockCount",
-          summary: "Isolated download/view counts. Does not increment.",
+          summary: "Isolated download/view counts. GET leaves counters unchanged.",
           responses: {
             "200": {
               description: "{project, views, downloads, total}",
@@ -599,7 +670,7 @@ function openapiDoc() {
       "/v1/pulse": {
         post: {
           operationId: "veillockPulse",
-          summary: "PulseCheck. Fail → halt/noise, never a plaintext claim.",
+          summary: "PulseCheck. Fail → halt/noise.",
           requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { values: { oneOf: [{ type: "array" }, { type: "object" }] } } } } } },
           responses: { "200": { description: "PCI PASS or FAIL (halt/noise)" } },
         },
@@ -639,13 +710,13 @@ function openapiDoc() {
       "/v1/apps": {
         get: {
           operationId: "veillockAppsGet",
-          summary: "Local-app steps. Does not inject into FaceTime, Zoom, Meet, Teams, or Skype.",
+          summary: "Local-app steps. Pick the VeilLock camera after the desktop tether is running.",
           parameters: [{ name: "app", in: "query", schema: { type: "string" } }],
           responses: { "200": { description: "Local-app steps" } },
         },
         post: {
           operationId: "veillockApps",
-          summary: "Local-app steps. Does not inject into FaceTime, Zoom, Meet, Teams, or Skype.",
+          summary: "Local-app steps. Pick the VeilLock camera after the desktop tether is running.",
           requestBody: { required: false, content: { "application/json": { schema: { type: "object", properties: { app: { type: "string" } } } } } },
           responses: { "200": { description: "Local-app steps" } },
         },
@@ -753,8 +824,8 @@ export async function handleRuntime(request, url, env) {
       phoenix: pass ? false : true,
       virtual_camera: false,
       note: pass
-        ? "PCI PASS. Default display is obfuscation, not plaintext. " + TETHER_NOTE
-        : "Pulse fail → halt/noise, never plaintext. " + TETHER_NOTE,
+        ? "PCI PASS. Default display is obfuscation. " + TETHER_NOTE
+        : "Pulse fail → halt/noise. " + TETHER_NOTE,
       ios_facetime: IOS_FACETIME,
     });
   }
@@ -768,7 +839,7 @@ export async function handleRuntime(request, url, env) {
       ...recipe,
       tether: "local",
       ios_facetime: IOS_FACETIME,
-      note: TETHER_NOTE + " Default natural camera/video veil, not plaintext. User controls.",
+      note: TETHER_NOTE + " Default natural camera/video veil. User controls.",
     });
   }
   if ((path === "/v1/azos-hook" || path === "/v1/consent") && request.method === "POST") {

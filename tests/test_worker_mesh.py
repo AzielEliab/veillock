@@ -1,6 +1,6 @@
 """Suite mesh Live Nodes + QNM-BUILD-1.0 contract.
 
-Default OFF. live|locked|isolated. No Node Gate. No auto-heal. Not anonymity.
+Default OFF. live|locked|isolated. Author Aziel Eliab only.
 """
 
 from __future__ import annotations
@@ -16,6 +16,8 @@ WRANGLER = (ROOT / "workers/download-tracker/wrangler.toml").read_text(encoding=
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 SKILL = (ROOT / "SKILL.md").read_text(encoding="utf-8")
 WORKER_README = (ROOT / "workers/download-tracker/README.md").read_text(encoding="utf-8")
+WHITEPAPER = (ROOT / "docs/whitepaper.md").read_text(encoding="utf-8")
+CONTRIBUTING = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
 
 
 def test_mesh_contract_default_off_qnm_law() -> None:
@@ -40,7 +42,8 @@ def test_mesh_contract_default_off_qnm_law() -> None:
     assert "softwares_tab: false" in MESH
     assert "public_qnsd_proxy: false" in MESH
     assert "QNS-CD-1.0" in MESH
-    assert "No public qnsd proxy" in MESH or "no public qnsd proxy" in MESH.lower()
+    assert "hub cite / Worker mesh cross-map" in MESH
+    assert "Local qnsd is coded in qnm-node" in MESH
     assert "/v1/qnsd" not in MESH
 
 
@@ -88,7 +91,7 @@ def test_runtime_advertises_mesh_proxy_and_pointer() -> None:
     assert "mesh: meshPointer()" in RUNTIME
     assert "/v1/mesh" in RUNTIME
     assert "QNM-BUILD-1.0" in RUNTIME
-    assert "No Node Gate" in RUNTIME
+    assert "QNS-CD-1.0" in RUNTIME
     assert 'path === "/v1/mesh"' in RUNTIME or 'path.startsWith("/v1/mesh/")' in RUNTIME
 
 
@@ -99,10 +102,9 @@ def test_home_live_nodes_strip_no_node_gate() -> None:
     assert "Live Nodes" in HOMEPAGE
     assert "QNM-BUILD-1.0" in HOMEPAGE
     assert "QNS-CD-1.0" in HOMEPAGE
-    assert "no public qnsd proxy" in HOMEPAGE
-    assert "No Node Gate" in HOMEPAGE
-    assert "No auto-heal" in HOMEPAGE
-    assert "Not an anonymity network" in HOMEPAGE
+    assert "Suite mesh: off (default)" in HOMEPAGE
+    assert "Aziel Eliab only" in HOMEPAGE
+    assert "Operator bearer to enable" in HOMEPAGE
     assert "/v1/mesh" in HOMEPAGE
     assert 'product: "veillock"' in HOMEPAGE
     assert 'id="node-gate"' not in HOMEPAGE
@@ -126,3 +128,27 @@ def test_docs_advertise_mesh_proxy() -> None:
     assert "QNS-CD-1.0" in RUNTIME
     assert "attachQnsCd" in MESH
     assert "qns_cd_spec" in MESH
+
+
+def test_discovery_copy_keeps_positive_definitions() -> None:
+    surfaces = {
+        "README": README,
+        "SKILL": SKILL,
+        "WORKER_README": WORKER_README,
+        "RUNTIME": RUNTIME,
+        "HOMEPAGE": HOMEPAGE,
+        "MESH": MESH,
+        "WHITEPAPER": WHITEPAPER,
+        "CONTRIBUTING": CONTRIBUTING,
+    }
+    for label, text in surfaces.items():
+        assert "THIS IS NOT" not in text, label
+        assert "blocked-from" not in text.lower(), label
+        assert "What this is not" not in text, label
+        assert "Not an anonymity network" not in text, label
+        assert "Not a Softwares-tab product" not in text, label
+        assert "does not inject" not in text, label
+    assert "THIS IS:" in SKILL
+    assert "THIS IS:" in RUNTIME
+    assert "Aziel Eliab" in SKILL
+    assert "≠" not in README

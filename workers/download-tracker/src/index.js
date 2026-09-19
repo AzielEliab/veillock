@@ -235,7 +235,7 @@ async function collectStats(env, request) {
     by_fork,
     breakdown,
     github: (await githubStats(env)),
-    note: "Forks identified by GitHub owner/repo. Key layout: project|owner|repo|branch|fork. Views are separate from downloads. /v1 does not increment.",
+    note: "Forks identified by GitHub owner/repo. Key layout: project|owner|repo|branch|fork. Views are separate from downloads. /v1 leaves counters unchanged.",
   };
 }
 
