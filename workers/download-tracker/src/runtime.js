@@ -177,10 +177,102 @@ const APP_GUIDES = {
   ],
 };
 
+const EXTRA_APP_GUIDES = {
+  discord: [
+    "Use YOUR camera on this device only.",
+    "Discord desktop: User Settings → Voice & Video → Camera → VeilLock.",
+    "Input device: a virtual microphone you installed, if you want veiled audio. VeilLock does not bundle that device.",
+    "Browser Discord uses the site camera permission, same as other WebRTC calls.",
+    "The live picture is a veil or a keyed scramble. It is not AES-256-GCM.",
+  ],
+  whatsapp: [
+    "WhatsApp desktop can use VeilLock only when its call screen offers a camera picker.",
+    "WhatsApp on a phone cannot select a third-party camera.",
+    "The live picture is a veil or a keyed scramble. It is not AES-256-GCM.",
+  ],
+  signal: [
+    "Signal desktop: call device menu → Camera → VeilLock, when the app offers a picker.",
+    "Signal on a phone cannot select a third-party camera.",
+    "The live picture is a veil or a keyed scramble. It is not AES-256-GCM.",
+  ],
+  obs: [
+    "OBS: Sources → Video Capture Device → VeilLock.",
+    "Audio Input Capture uses a virtual microphone you installed. VeilLock does not bundle one.",
+    "An OBS recording of that source stores the veil or the scramble, not the local AES-256-GCM file.",
+  ],
+  webrtc: [
+    "Browser WebRTC (Meet, Discord, and other sites): site permission → Camera → VeilLock.",
+    "Microphone: a virtual device you installed, if you want veiled audio.",
+    "The provider sees the veil or the scramble. That path is not AES-256-GCM.",
+  ],
+};
+
+const PLATFORM_LIMITS =
+  "iPhone FaceTime cannot select a third-party camera or microphone. Most phone clients (Zoom, Meet, Teams, WhatsApp, Signal) cannot either. Use a desktop app. VeilLock does not inject into the call app. A virtual microphone (PipeWire, BlackHole, VB-Cable) is not bundled.";
+
+const WRAP_SKILL_ADDENDUM = `
+
+## Call wrap (local package)
+
+\`veillock wrap\` feeds any desktop app that can choose a camera named VeilLock. \`veillock receive\` unveils a capture for a peer who has the out-of-band key. \`veillock record\` / \`veillock play\` are the local file.
+
+| Path | What it actually is |
+|------|---------------------|
+| Live call video | Keyed 8×8 scramble (permutation, rotation, invert). Obfuscation. **Not AES-256-GCM.** The provider sees the veil or the tiles. A peer with the key gets an approximation after the call codec, not bit-exact plaintext. Channel swaps are not used; 4:2:0 would not bring them back. |
+| Live call audio | Comfort-noise veil by default, or a keyed PCM block permutation. **Not AES-256-GCM.** Opus and AAC do not carry sample ciphertext. A phase-rebuilding speech codec does not return the waveform. Short blocks can still contain speech fragments. |
+| \`veillock record\` / \`play\` | **AES-256-GCM** per frame and per audio chunk, key rotation, PulseCheck. The call app's cloud recording is not this file. |
+| Keys | Out of band: 32-byte pre-shared key, HMAC-wrapped broadcast key (the wrap is AES-GCM of the key, not of the pixels), or X25519 then HKDF-SHA256. |
+
+PulseCheck failure halts to veil or noise. Plaintext is not sent. The veil stays on until you lift it. Hosted \`GET /v1/wrap\` describes this. It does not scramble pixels and it does not increment downloads.
+
+iPhone FaceTime cannot select a third-party camera or microphone. Most mobile clients cannot either.
+
+Lamb Lens order: Service, then Clarity, then Peace. Identity is Aziel Eliab only. Forks are welcome and always allowed.
+
+Works with ChatGPT (GPT Actions / OpenAI), Grok (xAI), Venice, Claude (Anthropic), Cursor (MCP), Glama (MCP), Perplexity, Microsoft Copilot / Bing, Google Gemini / Vertex, Mistral, Meta AI, Apple Intelligence surfaces, Amazon Q tooling, DuckAssist, You.com, Cohere, and other MCP/OpenAPI-capable assistants.
+`;
+
+export function wrapContract() {
+  return {
+    product: PRODUCT,
+    ok: true,
+    virtual_camera: false,
+    hosted_does_not_scramble: true,
+    plaintext: false,
+    increments_downloads: false,
+    aes_on_call_path: false,
+    call_video: {
+      kind: "keyed compression-tolerant scramble",
+      aes_256_gcm: false,
+      provider_sees: "natural veil by default, or shuffled 8x8 tiles after the user lifts the veil for a protected call",
+      peer_with_key: "approximate recovery after the call app's lossy codec; not bit-exact",
+    },
+    call_audio: {
+      kind: "comfort-noise veil by default; optional keyed PCM block permutation",
+      aes_256_gcm: false,
+      opus_aac: "Opus and AAC do not carry sample-level ciphertext. A speech codec that rebuilds phase does not return the original waveform. Short blocks can still contain speech fragments.",
+    },
+    local_recording: {
+      kind: "AES-256-GCM per frame and per audio chunk",
+      aes_256_gcm: true,
+      key_rotation: true,
+      pulsecheck: "failure halts; plaintext is not written",
+      commands: ["veillock record", "veillock play"],
+    },
+    keys: "out of band: pre-shared 32-byte key, HMAC-wrapped broadcast key, or X25519",
+    consent: "default veil; the user lifts it; pulse failure returns veil or noise, never plaintext",
+    platform_limits: PLATFORM_LIMITS,
+    ios_facetime: IOS_FACETIME,
+    lamb_lens: "Service, then Clarity, then Peace",
+    author: "Aziel Eliab",
+    identity: "Aziel Eliab only",
+  };
+}
+
 export function appsResult(src) {
   const raw = src && typeof src === "object" ? src : {};
   const app = String(raw.app || raw.name || "").toLowerCase().trim();
-  const names = ["zoom", "meet", "teams", "facetime", "skype"];
+  const names = ["zoom", "meet", "teams", "facetime", "skype", "discord", "whatsapp", "signal", "obs", "webrtc"];
   const extra = app === "camera" || app === "screen" ? [app] : [];
   const pick = names.includes(app) ? [app] : names;
   const selected = [...pick, ...extra].filter((name, i, arr) => arr.indexOf(name) === i);
@@ -188,7 +280,7 @@ export function appsResult(src) {
     app: name,
     inject: false,
     your_device_only: true,
-    steps: APP_GUIDES[name] || APP_GUIDES.camera,
+    steps: APP_GUIDES[name] || EXTRA_APP_GUIDES[name] || APP_GUIDES.camera,
   }));
   return {
     product: PRODUCT,
@@ -199,6 +291,9 @@ export function appsResult(src) {
     apps,
     note: "Local-app steps only. " + NO_INJECT,
     ios_facetime: IOS_FACETIME,
+    platform_limits: PLATFORM_LIMITS,
+    call_video: "keyed visual scramble (obfuscation, not AES-256-GCM)",
+    local_recording: "AES-256-GCM in the local package (veillock record / play)",
     author: "Aziel Eliab",
   };
 }
@@ -474,6 +569,18 @@ function openapiDoc() {
           responses: { "200": { description: "Local-app steps" } },
         },
       },
+      "/v1/wrap": {
+        get: {
+          operationId: "veillockWrapGet",
+          summary: "Call-wrap contract. Live video is a scramble, not AES-256-GCM. Local record/play is AES-256-GCM. Does not increment downloads.",
+          responses: { "200": { description: "Honesty contract for wrap, receive, record, and play" } },
+        },
+        post: {
+          operationId: "veillockWrap",
+          summary: "Call-wrap contract. Live video is a scramble, not AES-256-GCM. Local record/play is AES-256-GCM. Does not increment downloads.",
+          responses: { "200": { description: "Honesty contract for wrap, receive, record, and play" } },
+        },
+      },
     },
   };
 }
@@ -493,7 +600,7 @@ export async function handleRuntime(request, url, env) {
   }
 
   if (path === "/v1/skill" && request.method === "GET") {
-    return new Response(SKILL_MARKDOWN, {
+    return new Response(SKILL_MARKDOWN + WRAP_SKILL_ADDENDUM, {
       status: 200,
       headers: {
         "Content-Type": "text/markdown; charset=utf-8",
@@ -536,6 +643,8 @@ export async function handleRuntime(request, url, env) {
         "GET /v1/mesh/nodes",
         "GET /v1/apps",
         "POST /v1/apps",
+        "GET /v1/wrap",
+        "POST /v1/wrap",
         "POST /v1/pulse",
         "POST /v1/obfuscate-preview",
         "POST /v1/azos-hook",
@@ -591,6 +700,9 @@ export async function handleRuntime(request, url, env) {
       note: "You control the veil. Hosted receipt only. " + TETHER_NOTE,
     });
   }
+  if (path === "/v1/wrap" && (request.method === "GET" || request.method === "POST")) {
+    return runtimeJson(wrapContract());
+  }
   if (path === "/v1/apps" && (request.method === "GET" || request.method === "POST")) {
     let body = {};
     try { body = await readJsonBody(request); } catch (e) { return runtimeJson({ ok: false, error: e.message }, e.status || 400); }
@@ -615,7 +727,7 @@ export async function handleRuntime(request, url, env) {
       note: "Consent receipt: you accepted a call through AZ-OS. Veil lifted for this session. " + TETHER_NOTE,
     });
   }
-  if (path === "/v1/pulse" || path === "/v1/obfuscate-preview" || path === "/v1/azos-hook" || path === "/v1/call-accept" || path === "/v1/consent" || path === "/v1/apps") {
+  if (path === "/v1/pulse" || path === "/v1/obfuscate-preview" || path === "/v1/azos-hook" || path === "/v1/call-accept" || path === "/v1/consent" || path === "/v1/apps" || path === "/v1/wrap") {
     return runtimeJson({ error: "method not allowed" }, 405);
   }
   if (path.startsWith("/v1/")) return runtimeJson({ error: "not found", product: PRODUCT, hint: "GET /v1/health GET /v1/skill GET /v1/mesh POST /v1/{consent,call-accept,pulse}" }, 404);

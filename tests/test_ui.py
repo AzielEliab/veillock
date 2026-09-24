@@ -39,6 +39,8 @@ def test_ui_get_root_contains_tether() -> None:
             assert b"VeilLock" in body
             assert b"127.0.0.1" in body
             assert b"Tether" in body
+            assert b"Wrap any call" in body
+            assert b"not AES-256-GCM" in body
             assert b"AZ-OS" in body
             assert b"consent" in body.lower() or b"Consent" in body
     finally:
@@ -75,6 +77,43 @@ def test_ui_azos_accept_lifts_veil() -> None:
         with urllib.request.urlopen(req2, timeout=5) as res:
             body = json.loads(res.read().decode("utf-8"))
             assert body.get("veil") == "on"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join(timeout=2)
+
+
+def test_ui_wrap_preview_and_record_demo() -> None:
+    import json
+    import urllib.request
+
+    httpd, thread = _start()
+    try:
+        port = httpd.server_address[1]
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/wrap/preview",
+            data=b"{}",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=15) as res:
+            body = json.loads(res.read().decode("utf-8"))
+        assert body["aes_256_gcm"] is False
+        assert body["with_key"]["authorized"] is True
+        assert body["with_key"]["correlation"] > 0.9
+        assert body["without_key"]["authorized"] is False
+        assert body["provider"]["correlation"] < 0.25
+        req2 = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/record/demo",
+            data=b"{}",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req2, timeout=15) as res:
+            rec = json.loads(res.read().decode("utf-8"))
+        assert rec["aes_256_gcm"] is True
+        assert rec["match"] is True
+        assert "AES-256-GCM" in rec["note"]
     finally:
         httpd.shutdown()
         httpd.server_close()

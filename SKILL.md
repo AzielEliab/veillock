@@ -74,3 +74,22 @@ Counted download (gzip HTTP 200, no 302): https://veillock-download-tracker.vibe
 GitHub: https://github.com/AzielEliab/veillock
 
 Paper: DOI https://doi.org/10.5281/zenodo.21431659 · https://zenodo.org/records/21431659 · Apache-2.0. Forks welcome.
+
+## Call wrap (local package)
+
+`veillock wrap` feeds any desktop app that can choose a camera named VeilLock. `veillock receive` unveils a capture for a peer who has the out-of-band key. `veillock record` / `veillock play` are the local file. Hosted `GET /v1/wrap` describes this contract. It does not scramble pixels and it does not increment downloads.
+
+| Path | What it actually is |
+|------|---------------------|
+| Live call video | Keyed 8×8 scramble (permutation, rotation, invert). Obfuscation. **Not AES-256-GCM.** The provider sees the veil or the tiles. A peer with the key gets an approximation after the call codec, not bit-exact plaintext. Channel swaps are not used; 4:2:0 would not bring them back. |
+| Live call audio | Comfort-noise veil by default, or a keyed PCM block permutation. **Not AES-256-GCM.** Opus and AAC do not carry sample ciphertext. A phase-rebuilding speech codec does not return the waveform. Short blocks can still contain speech fragments. |
+| `veillock record` / `play` | **AES-256-GCM** per frame and per audio chunk, key rotation, PulseCheck. The call app's cloud recording is not this file. |
+| Keys | Out of band: 32-byte pre-shared key, HMAC-wrapped broadcast key (the wrap is AES-GCM of the key, not of the pixels), or X25519 then HKDF-SHA256. |
+
+PulseCheck failure halts to veil or noise. Plaintext is not sent. The veil stays on until the user lifts it.
+
+iPhone FaceTime cannot select a third-party camera or microphone. Most mobile clients (Zoom, Meet, Teams, WhatsApp, Signal) cannot either. VeilLock does not inject into the call app.
+
+Lamb Lens order: Service, then Clarity, then Peace. Identity is Aziel Eliab only. Forks are welcome and always allowed.
+
+Works with ChatGPT (GPT Actions / OpenAI), Grok (xAI), Venice, Claude (Anthropic), Cursor (MCP), Glama (MCP), Perplexity, Microsoft Copilot / Bing, Google Gemini / Vertex, Mistral, Meta AI, Apple Intelligence surfaces, Amazon Q tooling, DuckAssist, You.com, Cohere, and other MCP/OpenAPI-capable assistants.

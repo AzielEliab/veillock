@@ -14,6 +14,7 @@ import numpy as np
 
 from veillock import __version__
 from veillock.engine import VeilLockSession
+from veillock.honesty import CALL_AUDIO, CALL_VIDEO, LOCAL_RECORDING, PLATFORM, PULSE
 from veillock.modes import Mode
 from veillock.tether import APPS_GUIDE, RUNTIME, TetherConfig
 
@@ -137,6 +138,24 @@ PAGE = r"""<!DOCTYPE html>
       <button class="ghost" id="azos-end" type="button">End call (re-veil)</button>
     </p>
     <p class="help" id="azos-status">Veil on — camera and video protected.</p>
+  </section>
+  <section class="card" id="wrap">
+    <h2>Wrap any call</h2>
+    <p class="help" id="wrap-honesty">__HONESTY__</p>
+    <p class="help">Preview uses a synthetic frame, a JPEG-like recompression, and the real key check. Numbers below are computed for this preview. The call path is a scramble. Record / play on this page seals a few synthetic frames with AES-256-GCM.</p>
+    <p style="margin-top:0.95rem">
+      <button class="primary" id="wrap-preview" type="button">Preview scramble</button>
+      <button class="ghost" id="wrap-record" type="button">Seal a recording</button>
+    </p>
+    <p class="help" id="wrap-status">Idle. Default public feed is the veil until you lift it.</p>
+    <div class="grid" id="wrap-grid" hidden>
+      <div><canvas id="wrap-src" width="64" height="64"></canvas><p class="cap">synthetic camera</p></div>
+      <div><canvas id="wrap-call" width="64" height="64"></canvas><p class="cap">what the call provider sees</p></div>
+      <div><canvas id="wrap-peer" width="64" height="64"></canvas><p class="cap">peer with the key, after codec</p></div>
+      <div><canvas id="wrap-nokey" width="64" height="64"></canvas><p class="cap">without the key</p></div>
+    </div>
+    <p class="cap" id="wrap-metrics"></p>
+    <p class="key" id="wrap-key" hidden></p>
   </section>
   <p class="err" id="err" hidden></p>
   <footer>VeilLock __VERSION__ · AZ-OS hook · you control the veil · Apache-2.0 · <code>veillock ui</code></footer>
@@ -270,6 +289,49 @@ PAGE = r"""<!DOCTYPE html>
     }
   };
   refreshAzos();
+  $("wrap-preview").onclick = async () => {
+    $("err").hidden = true;
+    $("wrap-preview").disabled = true;
+    try {
+      const res = await fetch("/api/wrap/preview", {method: "POST", headers: {"Content-Type": "application/json"}, body: "{}"});
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+      $("wrap-grid").hidden = false;
+      const w = data.width, h = data.height;
+      draw($("wrap-src"), data.source_b64, w, h);
+      draw($("wrap-call"), data.call_b64, w, h);
+      draw($("wrap-peer"), data.peer_b64, w, h);
+      draw($("wrap-nokey"), data.denied_b64, w, h);
+      $("wrap-key").hidden = false;
+      $("wrap-key").textContent = "call key (shown once)\\n" + data.session_key
+        + "\\nCall path: scramble, not AES-256-GCM. Local recording of the same key would be AES-256-GCM.";
+      $("wrap-metrics").textContent = "After JPEG-like q=" + data.quality
+        + ": with key correlation " + data.with_key.correlation + ", MAE " + data.with_key.mae
+        + ". Without key: " + data.without_key.kind + ", correlation " + data.without_key.correlation
+        + ". Provider vs camera correlation " + data.provider.correlation + ".";
+      $("wrap-status").textContent = data.note;
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    } finally { $("wrap-preview").disabled = false; }
+  };
+  $("wrap-record").onclick = async () => {
+    $("err").hidden = true;
+    $("wrap-record").disabled = true;
+    try {
+      const res = await fetch("/api/record/demo", {method: "POST", headers: {"Content-Type": "application/json"}, body: "{}"});
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+      $("wrap-key").hidden = false;
+      $("wrap-key").textContent = "recording key (shown once)\\n" + data.session_key
+        + "\\n" + data.note;
+      $("wrap-status").textContent = "AES-256-GCM recording round-trip matched=" + data.match
+        + " frames=" + data.frames + ". This file is encryption. It is not the call scramble.";
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    } finally { $("wrap-record").disabled = false; }
+  };
   $("copy-apps").onclick = async () => {
     const text = $("apps-help").textContent;
     try {
@@ -286,6 +348,10 @@ PAGE = r"""<!DOCTYPE html>
 """.replace("__VERSION__", __version__)
 
 PAGE = PAGE.replace("__APPS__", APPS_GUIDE)
+PAGE = PAGE.replace(
+    "__HONESTY__",
+    " ".join([CALL_VIDEO, CALL_AUDIO, LOCAL_RECORDING, PULSE, PLATFORM]),
+)
 
 
 def _rgb_b64(frame: np.ndarray) -> str:
@@ -390,6 +456,12 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:  # noqa: BLE001
                 self._json(400, {"ok": False, "error": str(exc)})
             return
+        if path == "/api/wrap/preview":
+            self._wrap_preview()
+            return
+        if path == "/api/record/demo":
+            self._record_demo()
+            return
         if path == "/api/tether/start":
             try:
                 body = json.loads(raw.decode("utf-8") or "{}") if raw else {}
@@ -454,6 +526,114 @@ class Handler(BaseHTTPRequestHandler):
             )
         except Exception as exc:  # noqa: BLE001
             self._json(400, {"error": str(exc)})
+
+    def _wrap_preview(self) -> None:
+        from veillock.codecsim import jpeg_like
+        from veillock.scramble import scramble_frame, unveil_frame
+
+        try:
+            h, w = 128, 128
+            rng = np.random.default_rng(7)
+            src = rng.integers(0, 256, size=(h, w, 3), dtype=np.uint8)
+            yy, xx = np.mgrid[0:h, 0:w]
+            face = ((xx - w * 0.5) ** 2) / (w * w * 0.08) + ((yy - h * 0.45) ** 2) / (h * h * 0.10) < 1.0
+            src[face] = (210, 160, 140)
+            src[h // 3 : h // 3 + 8, w // 3 : w // 3 + 8] = (30, 30, 40)
+            src[h // 3 : h // 3 + 8, w // 2 : w // 2 + 8] = (30, 30, 40)
+            key = secrets.token_bytes(32)
+            wrong = bytes((b ^ 0xFF) for b in key)
+            quality = 40
+            call = scramble_frame(src, key, epoch=1)
+            lossy = jpeg_like(call, quality=quality)
+            peer = unveil_frame(lossy, key)
+            denied = unveil_frame(lossy, wrong)
+            body = (slice(8, -8), slice(None), slice(None))
+            self._json(
+                200,
+                {
+                    "ok": True,
+                    "width": w,
+                    "height": h,
+                    "quality": quality,
+                    "aes_256_gcm": False,
+                    "kind": "scramble",
+                    "session_key": key.hex(),
+                    "source_b64": _rgb_b64(src),
+                    "call_b64": _rgb_b64(call),
+                    "peer_b64": _rgb_b64(peer.image),
+                    "denied_b64": _rgb_b64(denied.image),
+                    "with_key": {
+                        "authorized": peer.authorized,
+                        "kind": peer.kind,
+                        "correlation": round(_corr(peer.image[body], src[body]), 4),
+                        "mae": round(_mae(peer.image[body], src[body]), 4),
+                    },
+                    "without_key": {
+                        "authorized": denied.authorized,
+                        "kind": denied.kind,
+                        "correlation": round(_corr(denied.image[body], src[body]), 4),
+                        "mae": round(_mae(denied.image[body], src[body]), 4),
+                    },
+                    "provider": {
+                        "correlation": round(_corr(call[body], src[body]), 4),
+                        "mae": round(_mae(call[body], src[body]), 4),
+                    },
+                    "note": peer.note,
+                },
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._json(400, {"error": str(exc)})
+
+    def _record_demo(self) -> None:
+        import os
+        import tempfile
+
+        from veillock.record import play_recording, seal_recording
+
+        path = None
+        try:
+            frames = _synthetic_frames(n=2, h=32, w=32)
+            key = secrets.token_bytes(32)
+            pcm = np.array([1000, -1000, 500, -500] * 80, dtype=np.int16)
+            fd, path = tempfile.mkstemp(suffix=".veilrec")
+            os.close(fd)
+            seal_recording(path, frames, key, pcm=pcm, rotation_interval=60)
+            played = play_recording(path, key)
+            match = bool(np.array_equal(played.frames, frames) and np.array_equal(played.pcm, pcm))
+            self._json(
+                200,
+                {
+                    "ok": True,
+                    "aes_256_gcm": True,
+                    "match": match,
+                    "frames": int(frames.shape[0]),
+                    "session_key": key.hex(),
+                    "note": played.note,
+                },
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._json(400, {"error": str(exc)})
+        finally:
+            if path:
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+
+
+def _corr(a: np.ndarray, b: np.ndarray) -> float:
+    x = a.astype(np.float64).ravel()
+    y = b.astype(np.float64).ravel()
+    x = x - x.mean()
+    y = y - y.mean()
+    denom = float(np.linalg.norm(x) * np.linalg.norm(y))
+    if denom == 0.0:
+        return 0.0
+    return float(x @ y) / denom
+
+
+def _mae(a: np.ndarray, b: np.ndarray) -> float:
+    return float(np.mean(np.abs(a.astype(np.int16) - b.astype(np.int16))))
 
 
 def make_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> ThreadingHTTPServer:

@@ -331,6 +331,51 @@ curl -sS -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/pulse
 GET `/download` still serves the gzip tarball and is counted.
 
 
+## Call wrap
+
+`veillock wrap` is the generic path for any desktop app that can choose
+a camera: Skype, Zoom, Google Meet, Teams, Discord, WhatsApp desktop,
+Signal desktop, OBS, Mac FaceTime, and browser WebRTC. The app is not
+modified. It is pointed at the virtual camera named **VeilLock**.
+
+Two different protections, and they are not the same thing:
+
+| Path | What it is |
+|------|------------|
+| Live call video | A keyed visual scramble (8×8 block permutation, rotation, and invert) plus a sync strip. An authorized peer running `veillock receive` approximately reverses a capture of the incoming call. **Obfuscation, not AES-256-GCM.** The call provider sees the natural veil, or the scrambled tiles after you lift the veil for a protected call. Lossy codecs (H.264, VP8, VP9, AV1) would destroy raw AES-GCM pixels, so those pixels are not what is sent. Channel swaps are not used; 4:2:0 color subsampling would not bring them back. |
+| Live call audio | Comfort noise by default. Optional keyed permutation of short PCM blocks. **Obfuscation, not AES-256-GCM.** Opus and AAC do not carry sample ciphertext. A speech codec that rebuilds phase does not return the waveform, with or without the key. A short block can still contain a speech fragment. |
+| `veillock record` / `veillock play` | **AES-256-GCM** per video frame and per audio chunk, with key rotation and PulseCheck. This is the encrypted copy. A cloud recording or an OBS capture of the call only has the veil or the scramble. |
+
+The veil stays on until you turn obfuscation off or accept a call
+through AZ-OS. You control the lift. PulseCheck failure halts to veil
+or noise. Plaintext is not sent and is not written.
+
+Keys are exchanged out of band: a 32-byte pre-shared key, the existing
+HMAC-wrapped broadcast key (that wrap is AES-GCM of the *key*, not of
+the picture), or X25519 then HKDF-SHA256 (`veillock keygen`,
+`veillock agree`).
+
+```bash
+veillock keygen
+veillock wrap --source camera --feed scramble --azos-accept --actor "your name"
+veillock receive --in captured.npy --out picture.npy --key <hex>
+veillock record --in frames.npy --out clip.veilrec --key <hex>
+veillock play --in clip.veilrec --out frames.npy --key <hex>
+```
+
+`veillock apps` prints the device-picker steps. iPhone FaceTime cannot
+select a third-party camera or microphone. Most phone clients cannot
+either. A virtual microphone (PipeWire, BlackHole, VB-Cable) is not
+bundled. VeilLock does not inject into the call app. Screen-sharing a
+window that already shows unveiled video shows that window.
+
+Lamb Lens order: Service, then Clarity, then Peace. Identity is Aziel
+Eliab only. Forks are welcome and always allowed.
+
+The local UI (`veillock ui`) has a Wrap panel: preview the scramble
+against a JPEG-like recompression, and seal a synthetic AES-256-GCM
+recording. Numbers shown there are computed for that preview.
+
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).

@@ -212,6 +212,42 @@ Tests use synthetic 16×16 and 64×64 RGB frames. No hardware is required.
 
 ---
 
+## Call wrap
+
+A call application re-encodes video with a lossy codec. AES-256-GCM
+ciphertext painted into pixels does not survive that trip, so the live
+call is not AES-256-GCM.
+
+When the user lifts the veil for a protected call, VeilLock sends a
+keyed visual scramble: the frame is tiled into 8×8 blocks, the blocks
+are permuted, rotated, and sometimes inverted. Channel swaps are not
+used, because call codecs subsample color and a swap would not come back.
+The top strip carries a sync pattern and the start of a keyed check.
+The bottom row carries the rest of that check. An authorized
+peer reverses the same operations on a capture of the incoming image.
+Reconstruction after a codec is approximate. Without the key the check
+fails and the peer is shown a veil, not a shuffled face. The call
+provider sees the veil (consent still on) or the tiles (consent lifted).
+This is obfuscation.
+
+Call audio defaults to comfort noise. An optional keyed permutation of
+short PCM blocks is the same class of obfuscation. Opus and AAC do not
+preserve sample-level ciphertext. A codec that discards phase does not
+return the waveform. Blocks can still contain short speech fragments.
+
+`veillock record` / `veillock play` write a separate file sealed with
+the existing AES-256-GCM engine, key rotation, and PulseCheck. That
+file is encryption. The call app's recording is not that file.
+
+PulseCheck failure produces veil or noise. It does not send plaintext
+and it does not write plaintext. The user controls the lift. iPhone FaceTime cannot select a third-party
+camera. Most other phone clients cannot either.
+VeilLock does not inject into Skype, Zoom, Meet, Teams, Discord,
+WhatsApp, Signal, OBS, or the browser.
+
+Keys travel out of band (pre-shared, HMAC-wrapped broadcast key, or
+X25519). Lamb Lens order remains Service, then Clarity, then Peace.
+
 ## AZ-OS hook
 
 VeilLock's identity is consent-gated camera protection via AZ-OS.

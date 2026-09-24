@@ -7,6 +7,11 @@
     veillock tether --azos-accept --actor NAME
     veillock azos
     veillock apps
+    veillock wrap --feed scramble --azos-accept --actor NAME
+    veillock receive --in captured.npy --out picture.npy --key HEX
+    veillock record --in frames.npy --out clip.veilrec --key HEX
+    veillock play --in clip.veilrec --out frames.npy --key HEX
+    veillock keygen
     veillock ui [--host 127.0.0.1] [--port 8761]
     veillock version
 """
@@ -141,8 +146,75 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser(
         "apps",
-        help="How to pick VeilLock in Zoom, Skype, FaceTime (Mac), Meet, Teams.",
+        help="How to pick VeilLock in a desktop call app, OBS, or a browser.",
     )
+
+    p_wrap = sub.add_parser(
+        "wrap",
+        help="Veil or scramble the camera for any app that can select it. Not AES on the call path.",
+    )
+    p_wrap.add_argument("--source", choices=("camera", "screen"), default="camera")
+    p_wrap.add_argument("--frames", default=None, help="Offline RGB .npy instead of a camera.")
+    p_wrap.add_argument(
+        "--feed",
+        choices=("scramble", "veil", "plaintext"),
+        default="scramble",
+        help="Public video after you lift the veil. scramble is not AES-256-GCM.",
+    )
+    p_wrap.add_argument(
+        "--audio-feed",
+        dest="audio_feed",
+        choices=("veil", "scramble", "off"),
+        default="veil",
+        help="Public audio. veil is comfort noise. scramble is not AES-256-GCM.",
+    )
+    p_wrap.add_argument("--audio-in", dest="audio_in", default=None, help="PCM int16 .npy from the mic.")
+    p_wrap.add_argument("--audio-out", dest="audio_out", default=None, help="Write the public PCM .npy.")
+    p_wrap.add_argument("--preview-out", dest="preview_out", default=None, help="Write public frames .npy (no virtual camera).")
+    p_wrap.add_argument("--record", default=None, help="AES-256-GCM .veilrec of the real frames. The call app does not get this file.")
+    p_wrap.add_argument("--mode", choices=("private", "broadcast", "obfuscation"), default="private")
+    p_wrap.add_argument("--device", default=0, type=int)
+    p_wrap.add_argument("--key", default=None, help="64-char hex call key (scramble + local recording).")
+    p_wrap.add_argument("--receiver-secret", dest="receiver_secret", default=None)
+    p_wrap.add_argument("--x25519-private", dest="x25519_private", default=None)
+    p_wrap.add_argument("--peer-public", dest="peer_public", default=None)
+    p_wrap.add_argument("--obfuscation-off", action="store_true", dest="obfuscation_off")
+    p_wrap.add_argument("--azos-accept", action="store_true", dest="azos_accept")
+    p_wrap.add_argument("--actor", default="")
+    p_wrap.add_argument("--width", type=int, default=640)
+    p_wrap.add_argument("--height", type=int, default=480)
+    p_wrap.add_argument("--fps", type=float, default=15)
+    p_wrap.add_argument("--rotation-interval", dest="rotation_interval", type=int, default=120)
+    p_wrap.add_argument("--max-frames", dest="max_frames", type=int, default=None)
+
+    p_recv = sub.add_parser(
+        "receive",
+        help="Unveil a captured call stack with the out-of-band key. Not an AES decrypt.",
+    )
+    p_recv.add_argument("--in", dest="inp", required=True)
+    p_recv.add_argument("--out", dest="out", required=True)
+    p_recv.add_argument("--key", required=True, help="64-char hex call key.")
+    p_recv.add_argument("--audio-in", dest="audio_in", default=None)
+    p_recv.add_argument("--audio-out", dest="audio_out", default=None)
+    p_recv.add_argument("--epoch", type=int, default=0, help="Epoch for audio only. Video reads its own sync strip.")
+
+    p_rec = sub.add_parser("record", help="Seal frames to an AES-256-GCM .veilrec. This path is encryption.")
+    p_rec.add_argument("--in", dest="inp", required=True)
+    p_rec.add_argument("--out", dest="out", required=True)
+    p_rec.add_argument("--key", default=None)
+    p_rec.add_argument("--audio-in", dest="audio_in", default=None)
+    p_rec.add_argument("--rotation-interval", dest="rotation_interval", type=int, default=120)
+
+    p_play = sub.add_parser("play", help="Decrypt an AES-256-GCM .veilrec. Wrong key fails closed.")
+    p_play.add_argument("--in", dest="inp", required=True)
+    p_play.add_argument("--out", dest="out", required=True)
+    p_play.add_argument("--key", required=True)
+    p_play.add_argument("--audio-out", dest="audio_out", default=None)
+
+    sub.add_parser("keygen", help="Print a pre-shared call key and an X25519 keypair.")
+    p_agree = sub.add_parser("agree", help="Derive the call key from your X25519 private key and the peer public key.")
+    p_agree.add_argument("--private", required=True, help="64-char hex X25519 private key.")
+    p_agree.add_argument("--peer-public", dest="peer_public", required=True)
     p_azos = sub.add_parser("azos", help="Show the AZ-OS consent hook status.")
     p_azos.add_argument("--json", action="store_true", dest="as_json", help="Print hook status as JSON.")
     p_azos.add_argument(
@@ -253,6 +325,106 @@ def main(argv: Sequence[str] | None = None) -> int:
         from veillock.tether import run_from_args
 
         return run_from_args(args)
+
+    if args.cmd == "wrap":
+        from veillock.wrap import run_from_args as wrap_from_args
+
+        return wrap_from_args(args)
+
+    if args.cmd == "keygen":
+        from veillock.callkeys import generate_x25519, random_psk
+        from veillock.honesty import CALL_VIDEO
+
+        psk = random_psk()
+        priv, pub = generate_x25519()
+        sys.stdout.write(f"psk={psk.hex()}\n")
+        sys.stdout.write(f"x25519_private={priv.hex()}\n")
+        sys.stdout.write(f"x25519_public={pub.hex()}\n")
+        sys.stdout.write(CALL_VIDEO + "\n")
+        sys.stdout.write("The psk seals a local AES-256-GCM recording and drives the call scramble. The scramble is not AES-256-GCM.\n")
+        return 0
+
+    if args.cmd == "agree":
+        from veillock.callkeys import agree_x25519
+
+        try:
+            shared = agree_x25519(_parse_hex("private", args.private, 32), _parse_hex("peer-public", args.peer_public, 32))
+        except ValueError as exc:
+            sys.stderr.write(f"error: {exc}\n")
+            return 2
+        sys.stdout.write(f"session_key={shared.hex()}\n")
+        sys.stdout.write("Same 32 bytes on both peers. Call video that uses it is a scramble, not AES-256-GCM. A veillock record file that uses it is AES-256-GCM.\n")
+        return 0
+
+    if args.cmd == "receive":
+        from veillock.wrap import receive_audio, receive_stack
+
+        frames = _load_frames(args.inp)
+        try:
+            key = _parse_hex("key", args.key, 32)
+            out, results = receive_stack(frames, key)
+        except (ValueError, HaltedError) as exc:
+            sys.stderr.write(f"error: {exc}\n")
+            return 2
+        np.save(args.out, out)
+        kinds = ",".join(r.kind for r in results)
+        authorized = sum(1 for r in results if r.authorized)
+        sys.stdout.write(
+            f"frames={out.shape[0]} authorized={authorized} kinds={kinds} out={args.out}\n"
+        )
+        sys.stdout.write(results[0].note + "\n")
+        if args.audio_in and args.audio_out:
+            pcm = np.load(args.audio_in)
+            unveiled = receive_audio(pcm, key, epoch=int(args.epoch))
+            np.save(args.audio_out, unveiled)
+            sys.stdout.write(f"audio_out={args.audio_out} note=pcm-block-scramble-not-aes\n")
+        elif args.audio_in:
+            sys.stderr.write("error: --audio-in requires --audio-out\n")
+            return 2
+        return 0
+
+    if args.cmd == "record":
+        from veillock.honesty import LOCAL_RECORDING
+        from veillock.record import seal_recording
+
+        frames = _load_frames(args.inp)
+        session_key = _parse_hex("key", args.key, 32) if args.key else secrets.token_bytes(32)
+        pcm = np.load(args.audio_in) if args.audio_in else None
+        try:
+            seal_recording(
+                args.out,
+                frames,
+                session_key,
+                pcm=pcm,
+                rotation_interval=args.rotation_interval,
+            )
+        except (HaltedError, ValueError) as exc:
+            sys.stderr.write(f"error: {exc}\n")
+            return 2
+        sys.stdout.write(f"session_key={session_key.hex()}\n")
+        sys.stdout.write(f"crypto=AES-256-GCM out={args.out}\n")
+        sys.stdout.write(LOCAL_RECORDING + "\n")
+        return 0
+
+    if args.cmd == "play":
+        from veillock.crypto import DecryptError as _DecryptError
+        from veillock.record import play_recording
+
+        try:
+            played = play_recording(args.inp, _parse_hex("key", args.key, 32))
+        except FileNotFoundError as exc:
+            sys.stderr.write(f"error: {exc}\n")
+            return 2
+        except (HaltedError, _DecryptError, ValueError) as exc:
+            sys.stderr.write(f"error: {exc}\n")
+            return 1
+        np.save(args.out, played.frames)
+        sys.stdout.write(f"frames={played.frames.shape[0]} crypto=AES-256-GCM out={args.out}\n")
+        sys.stdout.write(played.note + "\n")
+        if args.audio_out:
+            np.save(args.audio_out, played.pcm if played.pcm is not None else np.zeros((0,), dtype=np.int16))
+            sys.stdout.write(f"audio_out={args.audio_out}\n")
+        return 0
 
     if args.cmd == "encrypt":
         frames = _load_frames(args.inp)
