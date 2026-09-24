@@ -146,7 +146,11 @@ PAGE = r"""<!DOCTYPE html>
     <p style="margin-top:0.95rem">
       <button class="primary" id="wrap-preview" type="button">Preview scramble</button>
       <button class="ghost" id="wrap-record" type="button">Seal a recording</button>
+      <button class="ghost" id="mic-start" type="button">Start microphone</button>
+      <button class="ghost" id="mic-stop" type="button">Stop microphone</button>
     </p>
+    <p><label class="inline"><input id="mic-scramble" type="checkbox" /> When the veil is lifted, send a PCM scramble instead of the microphone</label></p>
+    <p class="help" id="mic-status">Microphone idle. Linux creates VeilLock Microphone. macOS feeds BlackHole 2ch only if BlackHole is installed. Windows feeds CABLE Input only if VB-Audio Virtual Cable is installed; the app selects CABLE Output. Call audio is not AES-256-GCM.</p>
     <p class="help" id="wrap-status">Idle. Default public feed is the veil until you lift it.</p>
     <div class="grid" id="wrap-grid" hidden>
       <div><canvas id="wrap-src" width="64" height="64"></canvas><p class="cap">synthetic camera</p></div>
@@ -289,6 +293,42 @@ PAGE = r"""<!DOCTYPE html>
     }
   };
   refreshAzos();
+  async function refreshMic() {
+    try {
+      const res = await fetch("/api/mic");
+      const data = await res.json();
+      const name = data.selectable_name || "unavailable";
+      $("mic-status").textContent = "Mic " + (data.running ? "running" : "stopped")
+        + " · " + (data.platform || "")
+        + " · " + name
+        + " · created by VeilLock: " + (data.created_by_veillock ? "yes" : "no")
+        + " · call audio AES-256-GCM: no. "
+        + (data.note || data.error || "");
+    } catch (e) { /* status line keeps the static honesty text */ }
+  }
+  $("mic-start").onclick = async () => {
+    $("err").hidden = true;
+    try {
+      const res = await fetch("/api/mic/start", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({scramble: $("mic-scramble").checked})});
+      const data = await res.json();
+      if (!res.ok || data.ok === false) throw new Error(data.error || data.note || ("HTTP " + res.status));
+      await refreshMic();
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+      await refreshMic();
+    }
+  };
+  $("mic-stop").onclick = async () => {
+    try {
+      await fetch("/api/mic/stop", {method: "POST"});
+      await refreshMic();
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    }
+  };
+  refreshMic();
   $("wrap-preview").onclick = async () => {
     $("err").hidden = true;
     $("wrap-preview").disabled = true;
@@ -418,6 +458,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/azos":
             self._json(200, RUNTIME.status())
             return
+        if path == "/api/mic":
+            from veillock.mic import MIC_RUNTIME
+
+            self._json(200, MIC_RUNTIME.status())
+            return
         self._json(404, {"error": "not found"})
 
     def do_POST(self) -> None:  # noqa: N802
@@ -455,6 +500,21 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, RUNTIME.set_obfuscation(bool(on)))
             except Exception as exc:  # noqa: BLE001
                 self._json(400, {"ok": False, "error": str(exc)})
+            return
+        if path == "/api/mic/start":
+            from veillock.mic import MIC_RUNTIME
+
+            try:
+                body = json.loads(raw.decode("utf-8") or "{}") if raw else {}
+                payload = MIC_RUNTIME.start(scramble_when_lifted=bool(body.get("scramble")))
+                self._json(200 if payload.get("ok") else 400, payload)
+            except Exception as exc:  # noqa: BLE001
+                self._json(400, {"ok": False, "error": str(exc), "call_audio_aes_256_gcm": False})
+            return
+        if path == "/api/mic/stop":
+            from veillock.mic import MIC_RUNTIME
+
+            self._json(200, MIC_RUNTIME.stop())
             return
         if path == "/api/wrap/preview":
             self._wrap_preview()

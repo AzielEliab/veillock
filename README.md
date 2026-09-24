@@ -343,7 +343,7 @@ Two different protections, and they are not the same thing:
 | Path | What it is |
 |------|------------|
 | Live call video | A keyed visual scramble (8×8 block permutation, rotation, and invert) plus a sync strip. An authorized peer running `veillock receive` approximately reverses a capture of the incoming call. **Obfuscation, not AES-256-GCM.** The call provider sees the natural veil, or the scrambled tiles after you lift the veil for a protected call. Lossy codecs (H.264, VP8, VP9, AV1) would destroy raw AES-GCM pixels, so those pixels are not what is sent. Channel swaps are not used; 4:2:0 color subsampling would not bring them back. |
-| Live call audio | Comfort noise by default. Optional keyed permutation of short PCM blocks. **Obfuscation, not AES-256-GCM.** Opus and AAC do not carry sample ciphertext. A speech codec that rebuilds phase does not return the waveform, with or without the key. A short block can still contain a speech fragment. |
+| Live call audio | Comfort noise until you lift the veil. Then the microphone, or a keyed permutation of short PCM blocks if you chose scramble. **Obfuscation, not AES-256-GCM.** Opus and AAC do not carry sample ciphertext. A speech codec that rebuilds phase does not return the waveform, with or without the key. A short block can still contain a speech fragment. PulseCheck failure is noise, never the microphone. |
 | `veillock record` / `veillock play` | **AES-256-GCM** per video frame and per audio chunk, with key rotation and PulseCheck. This is the encrypted copy. A cloud recording or an OBS capture of the call only has the veil or the scramble. |
 
 The veil stays on until you turn obfuscation off or accept a call
@@ -357,16 +357,32 @@ the picture), or X25519 then HKDF-SHA256 (`veillock keygen`,
 
 ```bash
 veillock keygen
-veillock wrap --source camera --feed scramble --azos-accept --actor "your name"
+veillock wrap --mic --source camera --feed scramble --azos-accept --actor "your name"
 veillock receive --in captured.npy --out picture.npy --key <hex>
-veillock record --in frames.npy --out clip.veilrec --key <hex>
+veillock record --in frames.npy --audio-in mic.npy --out clip.veilrec --key <hex>
 veillock play --in clip.veilrec --out frames.npy --key <hex>
 ```
 
+`veillock wrap --mic` also feeds a microphone the call app can select.
+On Linux, VeilLock creates that source. The name in the picker is
+**VeilLock Microphone**. `pactl` loads a null sink and a remap source;
+`paplay` writes the public audio; stop unloads both modules. That needs
+pipewire-pulse or PulseAudio. It is not a kernel driver.
+
+On macOS, no CoreAudio plugin is shipped. If BlackHole is already
+installed, the call app selects **BlackHole 2ch** (not a device named
+VeilLock) and sox or ffmpeg feeds it. On Windows, no audio driver is
+shipped. If VB-Audio Virtual Cable is already installed, the call app
+selects **CABLE Output** and VeilLock writes to **CABLE Input**.
+
+Default public audio is comfort noise. After you lift the veil it is
+the real microphone, unless you passed `--audio-feed scramble`. The
+real microphone can be sealed into the AES-256-GCM `.veilrec` at the
+same time. The call app never receives that file.
+
 `veillock apps` prints the device-picker steps. iPhone FaceTime cannot
 select a third-party camera or microphone. Most phone clients cannot
-either. A virtual microphone (PipeWire, BlackHole, VB-Cable) is not
-bundled. VeilLock does not inject into the call app. Screen-sharing a
+either. VeilLock does not inject into the call app. Screen-sharing a
 window that already shows unveiled video shows that window.
 
 Lamb Lens order: Service, then Clarity, then Peace. Identity is Aziel

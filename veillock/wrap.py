@@ -21,7 +21,8 @@ from typing import Any, Iterator, TextIO
 
 import numpy as np
 
-from veillock.audio import AUDIO_BLOCK, comfort_noise, scramble_pcm, unveil_pcm
+from veillock.audio import AUDIO_BLOCK, unveil_pcm
+from veillock.mic import choose_public_pcm
 from veillock.azos import AzosHook
 from veillock.engine import EncryptedFrame, EncryptedStream
 from veillock.frames import FrameSource
@@ -64,6 +65,7 @@ class WrapConfig:
     rotation_interval: int = 120
     max_frames: int | None = None
     record_path: str | None = None
+    mic: bool = False
     rng: np.random.Generator | None = None
     azos: AzosHook = field(default_factory=AzosHook)
 
@@ -117,14 +119,17 @@ def _public_audio(
     epoch: int,
     rng: np.random.Generator,
 ) -> tuple[np.ndarray, str]:
-    feed = str(audio_feed or "off").strip().lower()
-    if feed in ("off", "none"):
-        return np.zeros((0,), dtype=np.int16), "off"
-    if label in ("veil", "pulse-halt") or feed == "veil":
-        return comfort_noise(int(chunk.shape[0]), rng), "veil"
-    if feed == "scramble":
-        return scramble_pcm(chunk, key, epoch=epoch), "scramble"
-    raise ValueError("audio_feed must be off, veil, or scramble")
+    pulse_ok = label != "pulse-halt"
+    lifted = label not in ("veil", "pulse-halt")
+    return choose_public_pcm(
+        chunk,
+        audio_feed=audio_feed,
+        lifted=lifted,
+        pulse_ok=pulse_ok,
+        key=key,
+        epoch=epoch,
+        rng=rng,
+    )
 
 
 def run_wrap(
@@ -182,6 +187,8 @@ def run_wrap(
         )
     owns_cam = virtual_cam is None
     cam = virtual_cam
+    owns_mic = False
+    mic_dev = pcm_sink
     sealed: list[EncryptedFrame] = []
     pcm_real: list[np.ndarray] = []
     labels: list[str] = []
@@ -210,6 +217,19 @@ def run_wrap(
         out.write(PULSE + "\n")
         out.write(CONSENT + "\n")
         out.write(PLATFORM + "\n")
+        if cfg.mic and mic_dev is None:
+            from veillock.mic import VirtualMicrophone
+
+            mic_dev = VirtualMicrophone(rng=rng)
+            started = mic_dev.start()
+            if not started.running:
+                raise RuntimeError(started.error or started.note)
+            owns_mic = True
+            out.write(
+                f"mic={started.selectable_name} backend={started.backend} "
+                f"created_by_veillock={started.created_by_veillock}\n"
+            )
+            out.write(started.note + "\n")
         out.write(f"session_key={root.hex()}\n")
         if receiver_secret is not None:
             out.write(f"receiver_secret={receiver_secret.hex()}\n")
@@ -275,10 +295,12 @@ def run_wrap(
                     rng=rng,
                 )
                 audio_labels.append(audio_label)
-                if pcm_sink is not None:
-                    pcm_send = getattr(pcm_sink, "send", None)
+                if mic_dev is not None:
+                    pcm_send = getattr(mic_dev, "send", None)
                     if pcm_send is None:
-                        raise RuntimeError("pcm sink has no send()")
+                        pcm_send = getattr(mic_dev, "write", None)
+                    if pcm_send is None:
+                        raise RuntimeError("pcm sink has no send() or write()")
                     pcm_send(public_pcm)
                 if produced is not None and produced.sealed is not None and cfg.record_path:
                     pcm_real.append(mic)
@@ -295,6 +317,10 @@ def run_wrap(
                 close = getattr(cam, "close", None)
                 if close is not None:
                     close()
+        if owns_mic and mic_dev is not None:
+            stop = getattr(mic_dev, "stop", None)
+            if stop is not None:
+                stop()
         if owns_source:
             close = getattr(source, "close", None)
             if close is not None:
@@ -395,11 +421,16 @@ def run_from_args(args: Any) -> int:
 
     preview = getattr(args, "preview_out", None)
     cam: Any = ArrayCamera() if preview else None
+    use_mic = bool(getattr(args, "mic", False))
+    audio_feed = getattr(args, "audio_feed", None)
+    if audio_feed is None:
+        audio_feed = "auto" if use_mic else "off"
     mic: Any = ArrayMic() if getattr(args, "audio_out", None) else None
     cfg = WrapConfig(
         source=str(getattr(args, "source", "camera")),
         feed=str(getattr(args, "feed", "scramble")),
-        audio_feed=str(getattr(args, "audio_feed", "veil")),
+        audio_feed=str(audio_feed),
+        mic=bool(use_mic and mic is None),
         mode=str(getattr(args, "mode", "private")),
         device=getattr(args, "device", 0),
         width=int(getattr(args, "width", DEFAULT_WIDTH)),

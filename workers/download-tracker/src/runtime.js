@@ -181,7 +181,7 @@ const EXTRA_APP_GUIDES = {
   discord: [
     "Use YOUR camera on this device only.",
     "Discord desktop: User Settings → Voice & Video → Camera → VeilLock.",
-    "Input device: a virtual microphone you installed, if you want veiled audio. VeilLock does not bundle that device.",
+    "Input device: VeilLock Microphone on Linux after veillock wrap --mic. On Mac, BlackHole 2ch only if BlackHole is installed. On Windows, CABLE Output only if VB-Audio Virtual Cable is installed.",
     "Browser Discord uses the site camera permission, same as other WebRTC calls.",
     "The live picture is a veil or a keyed scramble. It is not AES-256-GCM.",
   ],
@@ -197,7 +197,7 @@ const EXTRA_APP_GUIDES = {
   ],
   obs: [
     "OBS: Sources → Video Capture Device → VeilLock.",
-    "Audio Input Capture uses a virtual microphone you installed. VeilLock does not bundle one.",
+    "Audio Input Capture: VeilLock Microphone on Linux, BlackHole 2ch on Mac if installed, or CABLE Output on Windows if VB-Cable is installed.",
     "An OBS recording of that source stores the veil or the scramble, not the local AES-256-GCM file.",
   ],
   webrtc: [
@@ -208,7 +208,7 @@ const EXTRA_APP_GUIDES = {
 };
 
 const PLATFORM_LIMITS =
-  "iPhone FaceTime cannot select a third-party camera or microphone. Most phone clients (Zoom, Meet, Teams, WhatsApp, Signal) cannot either. Use a desktop app. VeilLock does not inject into the call app. A virtual microphone (PipeWire, BlackHole, VB-Cable) is not bundled.";
+  "iPhone FaceTime cannot select a third-party camera or microphone. Most phone clients (Zoom, Meet, Teams, WhatsApp, Signal) cannot either. Use a desktop app. VeilLock does not inject into the call app. Linux: veillock wrap --mic creates a PipeWire or PulseAudio source named VeilLock Microphone via pactl (not a kernel driver). macOS: no CoreAudio plugin is shipped; if BlackHole is installed the app selects BlackHole 2ch. Windows: no audio driver is shipped; if VB-Audio Virtual Cable is installed the app selects CABLE Output and VeilLock writes to CABLE Input.";
 
 const WRAP_SKILL_ADDENDUM = `
 
@@ -219,7 +219,8 @@ const WRAP_SKILL_ADDENDUM = `
 | Path | What it actually is |
 |------|---------------------|
 | Live call video | Keyed 8×8 scramble (permutation, rotation, invert). Obfuscation. **Not AES-256-GCM.** The provider sees the veil or the tiles. A peer with the key gets an approximation after the call codec, not bit-exact plaintext. Channel swaps are not used; 4:2:0 would not bring them back. |
-| Live call audio | Comfort-noise veil by default, or a keyed PCM block permutation. **Not AES-256-GCM.** Opus and AAC do not carry sample ciphertext. A phase-rebuilding speech codec does not return the waveform. Short blocks can still contain speech fragments. |
+| Live call audio | Comfort-noise veil until the user lifts it, then the microphone, or a keyed PCM block permutation if scramble was chosen. **Not AES-256-GCM.** Opus and AAC do not carry sample ciphertext. A phase-rebuilding speech codec does not return the waveform. Short blocks can still contain speech fragments. |
+| Virtual microphone | Linux: VeilLock creates **VeilLock Microphone** with pactl (not a kernel driver). macOS: no CoreAudio plugin; the app selects **BlackHole 2ch** only if BlackHole is installed. Windows: no driver; the app selects **CABLE Output** only if VB-Audio Virtual Cable is installed, and VeilLock writes to CABLE Input. |
 | \`veillock record\` / \`play\` | **AES-256-GCM** per frame and per audio chunk, key rotation, PulseCheck. The call app's cloud recording is not this file. |
 | Keys | Out of band: 32-byte pre-shared key, HMAC-wrapped broadcast key (the wrap is AES-GCM of the key, not of the pixels), or X25519 then HKDF-SHA256. |
 
@@ -248,9 +249,29 @@ export function wrapContract() {
       peer_with_key: "approximate recovery after the call app's lossy codec; not bit-exact",
     },
     call_audio: {
-      kind: "comfort-noise veil by default; optional keyed PCM block permutation",
+      kind: "comfort-noise veil by default; real microphone only after the user lifts the veil; optional keyed PCM block permutation",
       aes_256_gcm: false,
       opus_aac: "Opus and AAC do not carry sample-level ciphertext. A speech codec that rebuilds phase does not return the original waveform. Short blocks can still contain speech fragments.",
+    },
+    virtual_microphone: {
+      created_on_worker: false,
+      call_audio_aes_256_gcm: false,
+      linux: {
+        created_by_veillock: true,
+        selectable_name: "VeilLock Microphone",
+        how: "pactl loads module-null-sink and module-remap-source. paplay feeds the sink. Stop unloads both modules. Requires pipewire-pulse or pulseaudio. Not a kernel driver.",
+      },
+      macos: {
+        created_by_veillock: false,
+        selectable_name: "BlackHole 2ch",
+        how: "No CoreAudio HAL plugin is shipped. If BlackHole is installed, sox or ffmpeg feeds that device. The call app selects BlackHole 2ch, not a device named VeilLock.",
+      },
+      windows: {
+        created_by_veillock: false,
+        selectable_name: "CABLE Output",
+        playback_name: "CABLE Input",
+        how: "No kernel driver is shipped. If VB-Audio Virtual Cable is installed, ffmpeg writes to CABLE Input. The call app selects CABLE Output.",
+      },
     },
     local_recording: {
       kind: "AES-256-GCM per frame and per audio chunk",

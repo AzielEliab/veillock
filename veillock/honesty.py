@@ -19,12 +19,14 @@ CALL_VIDEO = (
 )
 
 CALL_AUDIO = (
-    "Call-path audio is a comfort-noise veil by default. The optional "
-    "keyed path permutes short PCM blocks. That is obfuscation, not "
-    "AES-256-GCM. Opus and AAC do not carry sample-level ciphertext. "
-    "A speech codec that rebuilds phase does not give the original "
-    "waveform back, with or without the key. A short block can still "
-    "contain a speech fragment the provider can hear."
+    "Call-path audio is obfuscation, not AES-256-GCM. The public "
+    "microphone is comfort noise until you turn obfuscation off or accept "
+    "a call through AZ-OS. After that lift it is your microphone, or a "
+    "keyed permutation of short PCM blocks if you chose scramble. "
+    "PulseCheck failure is noise, never the microphone. Opus and AAC do "
+    "not carry sample-level ciphertext. A speech codec that rebuilds phase "
+    "does not give the original waveform back, with or without the key. "
+    "A short block can still contain a speech fragment the provider can hear."
 )
 
 LOCAL_RECORDING = (
@@ -49,8 +51,15 @@ PLATFORM = (
     "iPhone FaceTime cannot select a third-party camera or microphone. "
     "Most phone clients (Zoom, Meet, Teams, WhatsApp, Signal) cannot "
     "either. Use a desktop app that lets you pick the camera and "
-    "microphone. VeilLock does not inject into the call app. A virtual "
-    "microphone device (PipeWire, BlackHole, VB-Cable) is not bundled."
+    "microphone. VeilLock does not inject into the call app. "
+    "Linux: veillock wrap --mic creates a PipeWire or PulseAudio source. "
+    "The app selects VeilLock Microphone. That needs pactl and paplay. "
+    "It is not a kernel driver. "
+    "macOS: no CoreAudio plugin is shipped. If BlackHole is installed, "
+    "the app selects BlackHole 2ch and VeilLock feeds that device. "
+    "Windows: no audio driver is shipped. If VB-Audio Virtual Cable is "
+    "installed, the app selects CABLE Output and VeilLock writes to "
+    "CABLE Input."
 )
 
 SCREEN_SHARE = (

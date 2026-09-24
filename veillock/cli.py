@@ -162,11 +162,24 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Public video after you lift the veil. scramble is not AES-256-GCM.",
     )
     p_wrap.add_argument(
+        "--mic",
+        action="store_true",
+        help=(
+            "Feed a virtual microphone. Linux creates VeilLock Microphone via "
+            "pactl. macOS feeds BlackHole if installed. Windows feeds VB-Cable "
+            "if installed. Call audio is not AES-256-GCM."
+        ),
+    )
+    p_wrap.add_argument(
         "--audio-feed",
         dest="audio_feed",
-        choices=("veil", "scramble", "off"),
-        default="veil",
-        help="Public audio. veil is comfort noise. scramble is not AES-256-GCM.",
+        choices=("veil", "auto", "plaintext", "scramble", "off"),
+        default=None,
+        help=(
+            "Public audio. Default with --mic is auto: comfort noise until you "
+            "lift the veil, then the microphone, or scramble if you ask for it. "
+            "Not AES-256-GCM."
+        ),
     )
     p_wrap.add_argument("--audio-in", dest="audio_in", default=None, help="PCM int16 .npy from the mic.")
     p_wrap.add_argument("--audio-out", dest="audio_out", default=None, help="Write the public PCM .npy.")
@@ -186,6 +199,17 @@ def _build_parser() -> argparse.ArgumentParser:
     p_wrap.add_argument("--fps", type=float, default=15)
     p_wrap.add_argument("--rotation-interval", dest="rotation_interval", type=int, default=120)
     p_wrap.add_argument("--max-frames", dest="max_frames", type=int, default=None)
+
+    p_mic = sub.add_parser(
+        "mic",
+        help="Start or stop the virtual microphone. Call audio is not AES-256-GCM.",
+    )
+    p_mic.add_argument("action", choices=("status", "start", "stop"))
+    p_mic.add_argument(
+        "--scramble",
+        action="store_true",
+        help="When the veil is lifted, send a PCM scramble instead of the microphone.",
+    )
 
     p_recv = sub.add_parser(
         "receive",
@@ -330,6 +354,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         from veillock.wrap import run_from_args as wrap_from_args
 
         return wrap_from_args(args)
+
+    if args.cmd == "mic":
+        import json
+
+        from veillock.mic import MIC_RUNTIME
+
+        action = str(args.action)
+        if action == "start":
+            payload = MIC_RUNTIME.start(scramble_when_lifted=bool(args.scramble))
+        elif action == "stop":
+            payload = MIC_RUNTIME.stop()
+        else:
+            payload = MIC_RUNTIME.status()
+        sys.stdout.write(json.dumps(payload, indent=2) + "\n")
+        return 0 if payload.get("ok", True) and not payload.get("error") else 2
 
     if args.cmd == "keygen":
         from veillock.callkeys import generate_x25519, random_psk

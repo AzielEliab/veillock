@@ -73,52 +73,72 @@ Linux (v4l2loopback), once per boot if the VeilLock device is missing:
 
   sudo modprobe v4l2loopback devices=1 video_nr=10 card_label=VeilLock exclusive_caps=1
 
+Microphone — the name the call app actually shows
+  Linux: VeilLock Microphone.
+    `veillock wrap --mic` or `veillock mic start` loads module-null-sink
+    and module-remap-source through pactl, and paplay feeds the sink.
+    Stop unloads both modules. This needs pipewire-pulse or PulseAudio.
+    VeilLock creates that source. It is not a kernel driver.
+  macOS: BlackHole 2ch, and only if BlackHole is already installed.
+    No CoreAudio HAL plugin is shipped. The selectable name is not VeilLock.
+    sox or ffmpeg feeds BlackHole.
+  Windows: CABLE Output, and only if VB-Audio Virtual Cable is installed.
+    No kernel driver is shipped. VeilLock writes to CABLE Input. The
+    selectable microphone is CABLE Output, not VeilLock.
+  Default public audio is comfort noise. It becomes the real microphone
+  only after you lift the veil, or a PCM scramble if you passed
+  `--audio-feed scramble`. That call audio is not AES-256-GCM. The real
+  microphone can still be sealed into the `.veilrec` file at the same time.
+
 Zoom (desktop)
   Settings → Video → Camera → VeilLock
+  Settings → Audio → Microphone → the name in the Microphone section
 
 Skype (desktop)
   Settings → Audio & Video → Camera → VeilLock
+  Settings → Audio & Video → Microphone → the name in the Microphone section
 
 FaceTime (Mac)
   Video menu → VeilLock
+  Microphone menu → BlackHole 2ch, if BlackHole is installed
   Desktop FaceTime can select a third-party virtual camera.
-  iPhone FaceTime cannot select a third-party virtual camera (Apple).
+  iPhone FaceTime cannot select a third-party virtual camera or microphone.
 
 Google Meet (desktop browser)
   Meeting → More → Settings → Video → Camera → VeilLock
-  Allow the browser to use the VeilLock device.
+  Settings → Audio → Microphone → the name in the Microphone section
+  Allow the browser to use those devices.
 
 Microsoft Teams (desktop)
   Settings → Devices → Camera → VeilLock
-  Microphone → your VeilLock virtual mic, if you added one
+  Settings → Devices → Microphone → the name in the Microphone section
 
 Discord (desktop app or browser)
   User Settings → Voice & Video → Camera → VeilLock
-  Input Device → your VeilLock virtual mic, if you added one
+  Input Device → the name in the Microphone section
   Browser Discord uses the same site permission prompt as other WebRTC calls.
 
 WhatsApp (desktop)
   Call screen → camera menu → VeilLock, when the desktop app offers a
-  camera picker. WhatsApp on a phone cannot select a third-party camera.
+  camera picker. Microphone → the name in the Microphone section.
+  WhatsApp on a phone cannot select a third-party camera or microphone.
 
 Signal (desktop)
   Call device menu → Camera → VeilLock, when the desktop app offers it.
-  Signal on a phone cannot select a third-party camera.
+  Microphone → the name in the Microphone section.
+  Signal on a phone cannot select a third-party camera or microphone.
 
 OBS
   Sources → Video Capture Device → VeilLock
-  Audio Input Capture → your VeilLock virtual mic, if you added one
+  Audio Input Capture → the name in the Microphone section
   An OBS recording of that source stores the veil or the scramble.
   It is not the AES-256-GCM file from `veillock record`.
 
 Browser WebRTC (Meet, Discord, and other sites)
   Site permission → Camera → VeilLock
-  Microphone → your VeilLock virtual mic, if you added one
+  Site permission → Microphone → the name in the Microphone section
 
-A virtual microphone is not bundled. `veillock wrap` can emit veiled or
-scrambled PCM. You point the call app at a device you installed
-(PipeWire, BlackHole, or VB-Cable). iPhone FaceTime cannot select a
-third-party camera or microphone.
+iPhone FaceTime cannot select a third-party camera or microphone.
 
 Android / iOS
   iPhone FaceTime, Zoom iOS, and most mobile clients cannot select a

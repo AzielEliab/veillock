@@ -230,10 +230,23 @@ fails and the peer is shown a veil, not a shuffled face. The call
 provider sees the veil (consent still on) or the tiles (consent lifted).
 This is obfuscation.
 
-Call audio defaults to comfort noise. An optional keyed permutation of
-short PCM blocks is the same class of obfuscation. Opus and AAC do not
-preserve sample-level ciphertext. A codec that discards phase does not
-return the waveform. Blocks can still contain short speech fragments.
+Call audio defaults to comfort noise. After the user lifts the veil it
+is the microphone, or an optional keyed permutation of short PCM blocks.
+That is the same class of obfuscation. Opus and AAC do not preserve
+sample-level ciphertext. A codec that discards phase does not return
+the waveform. Blocks can still contain short speech fragments.
+PulseCheck failure on this path is noise, never the microphone.
+
+The virtual microphone is not the same thing on every operating system.
+On Linux, `veillock wrap --mic` creates a PipeWire or PulseAudio source
+described as VeilLock Microphone (`module-null-sink` plus
+`module-remap-source`, fed by `paplay`, unloaded on stop). That is not
+a kernel driver. On macOS no CoreAudio HAL plugin is shipped; if
+BlackHole is installed the call app selects BlackHole 2ch. On Windows
+no audio driver is shipped; if VB-Audio Virtual Cable is installed the
+call app selects CABLE Output and VeilLock writes to CABLE Input. The
+real microphone can be written into the AES-256-GCM recording while the
+call app receives only the public audio.
 
 `veillock record` / `veillock play` write a separate file sealed with
 the existing AES-256-GCM engine, key rotation, and PulseCheck. That
