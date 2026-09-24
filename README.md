@@ -396,13 +396,15 @@ Engulf and end-to-end encryption are separate from that picker.
 |----------|-----|--------|------------|
 | Linux | Native app that opens `/dev/video*` itself | `veillock engulf -- <app>`. `bwrap` hides the other video nodes, or `LD_PRELOAD` redirects `open()` of `/dev/video*`. PipeWire is not engulfed. | The app still gets the veil or the scramble. **Not AES-256-GCM.** |
 | Linux | PipeWire, portal, Flatpak, Snap | Not engulfed. | Same obfuscation on the app's stream. |
-| Windows | Zoom, Skype, Teams, Discord, and other native apps | Not engulfed. No capture hook. No signed DirectShow or Media Foundation source. | The app's stream is obfuscation. |
+| Windows 11 | Zoom, Skype, Teams, Discord, and other native apps | `veilcam-register.exe` on build 22000+ calls `MFCreateVirtualCamera`. The friendly name argument is VeilLock; Windows appends ` Windows Virtual Camera`. No kernel driver. VeilLock does not hook. Other cameras remain, so a saved device id may still need one pick. Without the helper, nothing is registered. The microphone is still **CABLE Output** if VB-Audio Virtual Cable is installed. | The app's stream is obfuscation, **not AES-256-GCM.** |
 | macOS | FaceTime and other hardened or Apple-signed apps | Not engulfed. SIP and the hardened runtime block injection. Apple-signed FaceTime cannot be injected into. Select the virtual camera. | The app's stream is obfuscation. |
 | Chromium | Meet, Teams web, Zoom web, Discord web, any WebRTC page | The extension wraps `getUserMedia`. Default is a generated veil, not the real camera. | **AES-256-GCM** on each encoded frame when both browsers have the extension and the same key. A relay that forwards those frames unchanged sees ciphertext. A server that decodes or transcodes does not recover the picture. |
 | iOS | Any app, including iPhone FaceTime | Apps cannot be wrapped. | No VeilLock path on iOS. |
 | Two VeilLock users | Beside any native call | `veillock link` is a separate TCP channel. The call app still sends the veil. | **AES-256-GCM** after a deflate encoder, with key rotation. Both ends need VeilLock. A wrong key fails closed. PulseCheck failure sends nothing. |
 
 The keyed scramble is the fallback for a person who does not run VeilLock. That path is obfuscation, not AES-256-GCM. The X25519 label for the encrypted channel is `veillock-e2e-media-v1`. The scramble key is a different label.
+
+`veillock compat` prints the coverage set: about 50 widely used call and video apps, with desktop, browser, and phone variants where those clients differ. It is not a market-share ranking. A new app is a profile entry (`register_profile`) plus a test, not a new capture fork. The per-app table and the sources are in [docs/app-coverage.md](docs/app-coverage.md). iPhone FaceTime cannot select a third-party camera.
 
 `veillock apps` prints the device-picker steps. iPhone FaceTime cannot
 select a third-party camera or microphone. Most phone clients cannot

@@ -273,8 +273,14 @@ Clarity, then Peace.
 Engulf is not the same on every platform. On Linux, `veillock engulf`
 can start an app that opens `/dev/video*` itself inside a `bwrap` device
 namespace, or with an `LD_PRELOAD` that redirects those opens. PipeWire
-and portal cameras are outside that sandbox and are not engulfed. Windows
-is not engulfed: no capture hook and no signed virtual source are shipped.
+and portal cameras are outside that sandbox and are not engulfed. On
+Windows 11 build 22000 or newer, `veilcam-register.exe` calls
+`MFCreateVirtualCamera` and registers a user-mode camera. The friendly
+name argument is VeilLock. Windows appends ` Windows Virtual Camera`.
+That is not a kernel driver. VeilLock does not hook capture APIs. Other
+physical cameras remain visible, so an app that saved a device id may
+still need one pick. Without the helper, no camera is registered. The
+microphone is still CABLE Output if VB-Audio Virtual Cable is installed.
 macOS is not engulfed: SIP and the hardened runtime block injection, and
 Apple-signed FaceTime cannot be injected into. iOS apps cannot be wrapped.
 Chromium pages are engulfed by the extension, which wraps `getUserMedia`

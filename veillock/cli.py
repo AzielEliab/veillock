@@ -148,6 +148,19 @@ def _build_parser() -> argparse.ArgumentParser:
         "apps",
         help="How to pick VeilLock in a desktop call app, OBS, or a browser.",
     )
+    p_compat = sub.add_parser(
+        "compat",
+        help="Show the app coverage registry, or detect one running app. Not a market-share ranking.",
+    )
+    p_compat.add_argument("--list", action="store_true", help="Print every built-in profile.")
+    p_compat.add_argument("--detect", action="store_true", help="Resolve one process, bundle, or URL.")
+    p_compat.add_argument("--process", default=None, help="Process name, for example Zoom.exe.")
+    p_compat.add_argument("--platform", default=None, help="linux, windows, darwin, ios, android, chromium, firefox, or safari.")
+    p_compat.add_argument("--bundle", default=None, help="Bundle id, for example com.apple.facetime.")
+    p_compat.add_argument("--url", default=None, help="Page URL, for example https://meet.google.com/abc.")
+    p_compat.add_argument("--vcam", action="store_true", help="Treat the Windows 11 registrar as running. Does not register a camera.")
+    p_compat.add_argument("--v4l2", action="store_true", help="This process opens /dev/video* itself.")
+    p_compat.add_argument("--sandboxed", action="store_true", help="Flatpak, Snap, or a portal sandbox. Not engulfed.")
 
     p_wrap = sub.add_parser(
         "wrap",
@@ -355,6 +368,34 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stdout.write(APPS_GUIDE)
         if not APPS_GUIDE.endswith("\n"):
             sys.stdout.write("\n")
+        return 0
+
+    if args.cmd == "compat":
+        from veillock.coverage import coverage_guide_text, detect
+
+        if args.detect or args.process or args.bundle or args.url:
+            found = detect(
+                args.process,
+                platform=args.platform,
+                bundle_id=args.bundle,
+                url=args.url,
+                have_vcam=True if args.vcam else None,
+                opens_v4l2=bool(args.v4l2),
+                sandboxed=bool(args.sandboxed),
+            )
+            if found is None:
+                sys.stdout.write(
+                    "No profile matched. Add one with register_profile. "
+                    "Nothing was captured and no camera was registered.\n"
+                )
+                return 2
+            sys.stdout.write(
+                f"{found.title} ({found.variant_id}) platform={found.platform or 'unspecified'}\n"
+                f"camera={found.camera}\nmic={found.mic}\ne2e={found.e2e}\n"
+                f"{found.note}\n{found.limit}\n"
+            )
+            return 0
+        sys.stdout.write(coverage_guide_text())
         return 0
 
     if args.cmd == "azos":

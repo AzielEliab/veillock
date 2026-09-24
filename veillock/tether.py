@@ -146,12 +146,14 @@ Android / iOS
   Skype / Meet / Teams).
 """
 
+from veillock.coverage import coverage_guide_text
 from veillock.engulf import engulf_guide_text
 from veillock.honesty import EXPORT_LEAVES, LOCAL_RECORDING
 
 APPS_GUIDE = (
     APPS_GUIDE
     + engulf_guide_text()
+    + coverage_guide_text()
     + "\nRecordings stay inside VeilLock\n------------------------------\n"
     + LOCAL_RECORDING
     + "\n"

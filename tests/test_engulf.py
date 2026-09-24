@@ -44,6 +44,13 @@ def test_plans_refuse_platforms_that_cannot_be_wrapped() -> None:
     browser = plan_engulf(["google-chrome"], platform="linux", have_bwrap=True, preload="/tmp/x.so")
     assert mac.engulfs is False and "FaceTime" in mac.note
     assert windows.engulfs is False and "does not hook" in windows.note
+    assert "no camera was registered" in windows.note
+    ready = plan_engulf(app, platform="windows", have_vcam=True, vcam_helper="/opt/veil/veilcam-register.exe")
+    assert ready.engulfs is True
+    assert ready.argv[0].endswith("veilcam-register.exe")
+    assert ready.argv[1:] == ["--", "zoom"]
+    for phrase in ("does not hook", "CABLE Output", "Windows Virtual Camera", "not AES-256-GCM"):
+        assert phrase in ready.note
     assert ios.engulfs is False and "cannot be wrapped" in ios.note
     assert browser.engulfs is False and "extension" in browser.note
     missing = plan_engulf(["ffmpeg"], platform="linux", have_bwrap=False, preload="")

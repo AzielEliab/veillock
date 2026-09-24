@@ -95,11 +95,16 @@ E2E = (
 ENGULF = (
     "Linux can engulf an app that opens /dev/video* itself, with bwrap or "
     "LD_PRELOAD, and only when you launch it via veillock engulf. PipeWire "
-    "and portal cameras are not engulfed. Windows is not engulfed: no capture "
-    "hook and no signed virtual source are shipped. macOS is not engulfed: "
-    "SIP and the hardened runtime block injection, and Apple-signed FaceTime "
-    "cannot be injected into. iOS apps cannot be wrapped. Chromium pages are "
-    "engulfed by the browser extension, which wraps getUserMedia."
+    "and portal cameras are not engulfed. Windows 11 build 22000 or newer can "
+    "register a user-mode Media Foundation camera named with the friendly-name "
+    "argument VeilLock while veilcam-register.exe is running. Windows appends "
+    "Windows Virtual Camera. That is not a kernel driver. VeilLock does not hook "
+    "capture APIs. Other physical cameras remain visible. Without that helper, "
+    "no camera is registered. The microphone is still CABLE Output if VB-Audio "
+    "Virtual Cable is installed. macOS is not engulfed: SIP and the hardened "
+    "runtime block injection, and Apple-signed FaceTime cannot be injected into. "
+    "iOS apps cannot be wrapped. Chromium pages are engulfed by the browser "
+    "extension, which wraps getUserMedia."
 )
 
 LAMBS = "Lamb Lens order: Service, then Clarity, then Peace."

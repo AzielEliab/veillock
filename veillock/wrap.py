@@ -141,6 +141,7 @@ def run_wrap(
     pcm_sink: Any = None,
     stop_event: threading.Event | None = None,
     log: TextIO | None = None,
+    windows_cam: Any = None,
 ) -> WrapReport:
     """Send the public feed. Optionally write an AES-256-GCM recording of the real frames."""
     cfg = config if config is not None else WrapConfig()
@@ -192,6 +193,13 @@ def run_wrap(
     sealed: list[EncryptedFrame] = []
     pcm_real: list[np.ndarray] = []
     vault: ChunkVault | None = None
+    win_sink = windows_cam
+    owns_win = False
+    if win_sink is None:
+        from veillock.wincam import default_windows_sink
+
+        win_sink = default_windows_sink()
+        owns_win = win_sink is not None
     labels: list[str] = []
     audio_labels: list[str] = []
     sent = 0
@@ -273,6 +281,8 @@ def run_wrap(
             if send is None:
                 raise RuntimeError("virtual camera has no send()")
             send(np.ascontiguousarray(public, dtype=np.uint8))
+            if win_sink is not None:
+                win_sink.publish_rgb(np.ascontiguousarray(public, dtype=np.uint8))
             sleeper = getattr(cam, "sleep_until_next_frame", None)
             if sleeper is not None:
                 sleeper()
@@ -328,6 +338,10 @@ def run_wrap(
                 sealed.append(produced.sealed)
             sent += 1
     finally:
+        if owns_win and win_sink is not None:
+            close_win = getattr(win_sink, "close", None)
+            if close_win is not None:
+                close_win()
         if owns_cam and cam is not None:
             closer = getattr(cam, "__exit__", None)
             if closer is not None:

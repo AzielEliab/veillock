@@ -123,7 +123,7 @@ const IDENTITY = "consent-gated camera protection via AZ-OS";
 const IOS_FACETIME = "iOS FaceTime cannot pick a third-party camera.";
 const TETHER_NOTE = "Desktop tether stays local. Hosted /v1 is a consent receipt, not a virtual camera.";
 const AZOS_HOST = "https://azos-download-tracker.vibelock.workers.dev";
-const NO_INJECT = "VeilLock does not attach to a running FaceTime, Zoom, Meet, Teams, or Skype process. macOS, Windows, and iOS are not engulfed.";
+const NO_INJECT = "VeilLock does not attach to a running FaceTime, Zoom, Meet, Teams, or Skype process. This worker does not register a camera. macOS and iOS are not engulfed. A local Windows 11 helper can register a user-mode camera; this worker does not.";
 const LIMITATION =
   "THIS IS: a privacy veil on the user's own camera and video, plus local-app steps. THIS IS NOT: a VPN, Tor, anonymous relay, or an attach to a running FaceTime/Zoom/Meet/Teams/Skype process. YOUR camera/screen only.";
 const DOI = "10.5281/zenodo.21431659";
@@ -208,7 +208,7 @@ const EXTRA_APP_GUIDES = {
 };
 
 const PLATFORM_LIMITS =
-  "iPhone FaceTime cannot select a third-party camera or microphone. Most phone clients (Zoom, Meet, Teams, WhatsApp, Signal) cannot either. Use a desktop app. VeilLock does not attach to a call app that is already running. Linux: veillock wrap --mic creates a PipeWire or PulseAudio source named VeilLock Microphone via pactl (not a kernel driver). Linux engulf (bwrap or LD_PRELOAD) only starts a new process that opens /dev/video* itself; PipeWire is not engulfed. macOS: no CoreAudio plugin is shipped; SIP and the hardened runtime block injection, including Apple-signed FaceTime. If BlackHole is installed the app selects BlackHole 2ch. Windows: no audio driver is shipped and capture APIs are not hooked. If VB-Audio Virtual Cable is installed the app selects CABLE Output and VeilLock writes to CABLE Input.";
+  "iPhone FaceTime cannot select a third-party camera or microphone. Most phone clients (Zoom, Meet, Teams, WhatsApp, Signal) cannot either. Use a desktop app. VeilLock does not attach to a call app that is already running. Linux: veillock wrap --mic creates a PipeWire or PulseAudio source named VeilLock Microphone via pactl (not a kernel driver). Linux engulf (bwrap or LD_PRELOAD) only starts a new process that opens /dev/video* itself; PipeWire is not engulfed. macOS: no CoreAudio plugin is shipped; SIP and the hardened runtime block injection, including Apple-signed FaceTime. If BlackHole is installed the app selects BlackHole 2ch. Windows: no audio driver is shipped and capture APIs are not hooked. If VB-Audio Virtual Cable is installed the app selects CABLE Output and VeilLock writes to CABLE Input. Windows 11 build 22000+ can register a user-mode Media Foundation camera locally (friendly name VeilLock; Windows appends Windows Virtual Camera) while veilcam-register.exe is running. Other cameras remain. This worker does not register a camera. The coverage set is profiles, not a market-share ranking.";
 
 const WRAP_SKILL_ADDENDUM = `
 
@@ -223,7 +223,7 @@ const WRAP_SKILL_ADDENDUM = `
 | Virtual microphone | Linux: VeilLock creates **VeilLock Microphone** with pactl (not a kernel driver). macOS: no CoreAudio plugin; the app selects **BlackHole 2ch** only if BlackHole is installed. Windows: no driver; the app selects **CABLE Output** only if VB-Audio Virtual Cable is installed, and VeilLock writes to CABLE Input. |
 | \`veillock record\` / \`play\` | **AES-256-GCM at rest** for video+audio, video-only, and audio-only, including what was sent and what a peer decrypted. The key is not in the file. Playback is in memory. Plaintext export is off unless explicitly requested and leaves this protection. A screen recorder pointed at a playing screen is outside the file. |
 | Keys | Out of band: 32-byte pre-shared key, HMAC-wrapped broadcast key (the wrap is AES-GCM of the key, not of the pixels), or X25519 then HKDF-SHA256. The E2E media key uses the HKDF label veillock-e2e-media-v1. The scramble key is a different label and is not AES. |
-| Engulf | Linux, app opens /dev/video* itself: bwrap or LD_PRELOAD via veillock engulf. PipeWire, Windows, macOS (SIP, hardened runtime, Apple-signed FaceTime), and iOS: not engulfed. Chromium: the extension wraps getUserMedia. |
+| Engulf | Linux, app opens /dev/video* itself: bwrap or LD_PRELOAD via veillock engulf. PipeWire is not engulfed. Windows 11 build 22000+: local MFCreateVirtualCamera, friendly name VeilLock, picker suffix Windows Virtual Camera, no kernel driver, does not hook, other cameras remain, mic still CABLE Output. Without the helper, nothing is registered. macOS (SIP, hardened runtime, Apple-signed FaceTime) and iOS: not engulfed. Chromium: the extension wraps getUserMedia. |
 | VeilLock link | **AES-256-GCM** on deflate-encoded frames over TCP between two VeilLock users. The call app still carries only the veil or the scramble. Both ends need VeilLock. A wrong key fails closed. |
 | Browser encoded frames | **AES-256-GCM** on each encoded frame when both Chromium browsers run the extension and share the key. A forwarding relay sees ciphertext. A server that decodes or transcodes does not recover the picture. |
 
@@ -257,7 +257,9 @@ export function wrapContract() {
     },
     engulf: {
       linux_v4l2: "bwrap fresh /dev with only the VeilLock node, or LD_PRELOAD of open(/dev/video*). PipeWire is not engulfed.",
-      windows: "not engulfed; no capture hook and no signed DirectShow or Media Foundation source",
+      windows: "Windows 11 build 22000+ user-mode MFCreateVirtualCamera while veilcam-register.exe is running locally. Friendly name VeilLock; Windows appends Windows Virtual Camera. No kernel driver. Does not hook. Other cameras remain. Mic is still CABLE Output. Without the helper, nothing is registered. This worker does not register a camera.",
+      strategies: ["engulf-v4l2", "win11-vcam", "unregistered", "extension-getusermedia", "pick-cam", "impossible"],
+      coverage: "local profile registry of widely used call apps; not a market-share ranking; a new app is a profile entry",
       macos: "not engulfed; SIP and the hardened runtime block injection; Apple-signed FaceTime cannot be injected into",
       ios: "apps cannot be wrapped",
       chromium: "extension wraps getUserMedia; default veil; encoded-frame AES-256-GCM only when both sides have the key",

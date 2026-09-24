@@ -12,8 +12,13 @@ listing, and it does not wrap PipeWire, PulseAudio, or ``/dev/snd``.
 Linux PipeWire and xdg-desktop-portal apps are not engulfed. The camera
 daemon is a different process.
 
-Windows is not engulfed. No signed DirectShow or Media Foundation source
-is shipped, and VeilLock does not hook capture APIs inside another process.
+Windows 11 (build 22000 or newer) can register a user-mode Media Foundation
+camera while ``windows/vcam/veilcam-register.exe`` is running. The friendly
+name argument is VeilLock. Windows appends `` Windows Virtual Camera``.
+That is not a kernel driver. VeilLock does not hook capture APIs. Other
+physical cameras remain visible, so an app that saved a device id may still
+need one pick. Without the helper, nothing is registered. The microphone
+is still CABLE Output when VB-Audio Virtual Cable is installed.
 
 macOS is not engulfed. SIP and the hardened runtime block library
 injection. Apple-signed FaceTime cannot be injected into. Fall back to
@@ -85,12 +90,37 @@ ENGULF_ROWS: tuple[EngulfRow, ...] = (
         engulfs=False,
     ),
     EngulfRow(
-        platform="Windows",
-        app_type="Zoom, Skype, Teams, Discord, and other native call apps",
+        platform="Windows 11",
+        app_type="Zoom, Skype, Teams, Discord, and other apps that enumerate cameras",
         method=(
-            "Not engulfed. No signed DirectShow or Media Foundation source is "
-            "shipped. VeilLock does not hook capture APIs in the app. The app "
-            "still uses whatever camera it has selected."
+            "When windows/vcam/veilcam-register.exe is running on Windows 11 build "
+            "22000 or newer, MFCreateVirtualCamera registers a user-mode camera. "
+            "The friendly name argument is VeilLock. Windows appends Windows Virtual "
+            "Camera, so the picker shows VeilLock Windows Virtual Camera. No kernel "
+            "driver is shipped. VeilLock does not hook capture APIs. Other physical "
+            "cameras remain visible; an app that saved a device id may still need one "
+            "pick. This is not a per-process hide of /dev/video*. A DirectShow-only app "
+            "that ignores the Windows camera pipeline will not see the camera. The "
+            "microphone is CABLE Output only if VB-Audio Virtual Cable is installed; "
+            "VeilLock does not create that microphone. If the Python feeder is absent "
+            "the picture is a solid veil, never the physical camera. Without the built "
+            "helper, nothing is registered."
+        ),
+        encryption=(
+            "The app's stream is obfuscation, not AES-256-GCM. Two VeilLock users "
+            "can still run veillock link beside the call. That link is AES-256-GCM. "
+            "The call provider sees the veil, not the link."
+        ),
+        engulfs=True,
+    ),
+    EngulfRow(
+        platform="Windows",
+        app_type="Windows 10, or Windows 11 before the helper is built",
+        method=(
+            "Not engulfed. VeilLock does not hook capture APIs and does not ship a "
+            "kernel driver. The Win11 Media Foundation camera is not registered, so "
+            "the app keeps its current camera. The microphone is CABLE Output only if "
+            "VB-Audio Virtual Cable is installed."
         ),
         encryption=(
             "The app's stream is obfuscation, not AES-256-GCM. Two VeilLock users "
@@ -277,6 +307,25 @@ def bwrap_command(app: list[str], video_device: str) -> list[str]:
     return cmd
 
 
+_WINDOWS_REFUSED = (
+    "Windows engulf is refused on this machine because windows/vcam/veilcam-register.exe "
+    "is not present, so no camera was registered. VeilLock does not hook capture APIs "
+    "and does not ship a kernel driver. Build that helper on Windows 11 build 22000 or newer. "
+    "The microphone is CABLE Output if VB-Audio Virtual Cable is installed. "
+    "The app's stream is obfuscation, not AES-256-GCM."
+)
+
+_WINDOWS_READY = (
+    "Windows 11 Media Foundation virtual camera. The friendly name argument is VeilLock. "
+    "Windows appends Windows Virtual Camera, so the picker shows VeilLock Windows Virtual Camera. "
+    "No kernel driver. VeilLock does not hook capture APIs. Other physical cameras remain visible; "
+    "an app that saved a device id may still need one pick. "
+    "The microphone is CABLE Output if VB-Audio Virtual Cable is installed; VeilLock does not create that microphone. "
+    "If the feeder is absent the picture is a solid veil, never the physical camera. "
+    "The app's stream is obfuscation, not AES-256-GCM."
+)
+
+
 def plan_engulf(
     app: list[str],
     *,
@@ -284,6 +333,8 @@ def plan_engulf(
     have_bwrap: bool | None = None,
     preload: str | None = None,
     video_device: str = "/dev/video10",
+    have_vcam: bool | None = None,
+    vcam_helper: str | None = None,
 ) -> EngulfPlan:
     plat = host_platform(platform)
     env = dict(os.environ)
@@ -308,14 +359,15 @@ def plan_engulf(
             "The app's stream is obfuscation, not AES-256-GCM.",
         )
     if plat == "windows":
-        return EngulfPlan(
-            plat,
-            False,
-            [],
-            env,
-            "Windows engulf is refused. No DirectShow or Media Foundation source is shipped, "
-            "and VeilLock does not hook the app's capture APIs. The app's stream is obfuscation, not AES-256-GCM.",
-        )
+        from veillock.wincam import HELPER_EXE, helper_present
+
+        helper = vcam_helper or str(HELPER_EXE)
+        present = helper_present() if have_vcam is None else bool(have_vcam)
+        if vcam_helper and have_vcam is None:
+            present = Path(vcam_helper).is_file()
+        if not present:
+            return EngulfPlan(plat, False, [], env, _WINDOWS_REFUSED)
+        return EngulfPlan(plat, True, [helper, "--", *app], env, _WINDOWS_READY)
     if plat != "linux":
         return EngulfPlan(plat, False, [], env, f"No engulf on {plat}.")
     if _is_browser(app):
