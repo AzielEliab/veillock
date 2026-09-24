@@ -51,6 +51,10 @@ def test_plans_refuse_platforms_that_cannot_be_wrapped() -> None:
     assert ready.argv[1:] == ["--", "zoom"]
     for phrase in ("does not hook", "CABLE Output", "Windows Virtual Camera", "not AES-256-GCM"):
         assert phrase in ready.note
+    windows_10 = plan_engulf(app, platform="windows", have_vcam=True, windows_build=19041)
+    assert windows_10.engulfs is False and windows_10.argv == []
+    assert "22000" in windows_10.note and "does not hook" in windows_10.note
+    assert "veillock wrap --mic" in mac.note
     assert ios.engulfs is False and "cannot be wrapped" in ios.note
     assert browser.engulfs is False and "extension" in browser.note
     missing = plan_engulf(["ffmpeg"], platform="linux", have_bwrap=False, preload="")

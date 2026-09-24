@@ -161,6 +161,30 @@ def _build_parser() -> argparse.ArgumentParser:
     p_compat.add_argument("--vcam", action="store_true", help="Treat the Windows 11 registrar as running. Does not register a camera.")
     p_compat.add_argument("--v4l2", action="store_true", help="This process opens /dev/video* itself.")
     p_compat.add_argument("--sandboxed", action="store_true", help="Flatpak, Snap, or a portal sandbox. Not engulfed.")
+    p_compat.add_argument(
+        "--capture",
+        default=None,
+        choices=("unknown", "v4l2", "pipewire", "portal", "flatpak", "snap", "media-foundation", "directshow", "avfoundation", "getusermedia"),
+        help="How this app opens the camera. This outranks the process name.",
+    )
+    p_compat.add_argument("--windows-build", dest="windows_build", type=int, default=None, help="Windows build number. Below 22000 registers nothing.")
+
+    p_join = sub.add_parser(
+        "join",
+        help="One report for a meeting link. Does not join the call or register a camera.",
+    )
+    p_join.add_argument("url", help="Join link, for example a Teams, Meet, Zoom, or Webex URL.")
+    p_join.add_argument("--platform", default=None)
+    p_join.add_argument("--process", default=None)
+    p_join.add_argument(
+        "--capture",
+        default=None,
+        choices=("unknown", "v4l2", "pipewire", "portal", "flatpak", "snap", "media-foundation", "directshow", "avfoundation", "getusermedia"),
+    )
+    p_join.add_argument("--windows-build", dest="windows_build", type=int, default=None)
+    p_join.add_argument("--vcam", action="store_true")
+    p_join.add_argument("--v4l2", action="store_true")
+    p_join.add_argument("--sandboxed", action="store_true")
 
     p_wrap = sub.add_parser(
         "wrap",
@@ -370,30 +394,28 @@ def main(argv: Sequence[str] | None = None) -> int:
             sys.stdout.write("\n")
         return 0
 
-    if args.cmd == "compat":
-        from veillock.coverage import coverage_guide_text, detect
+    if args.cmd in ("compat", "join"):
+        from veillock.coverage import coverage_guide_text, detect, format_detection
 
-        if args.detect or args.process or args.bundle or args.url:
-            found = detect(
-                args.process,
-                platform=args.platform,
-                bundle_id=args.bundle,
-                url=args.url,
-                have_vcam=True if args.vcam else None,
-                opens_v4l2=bool(args.v4l2),
-                sandboxed=bool(args.sandboxed),
-            )
-            if found is None:
-                sys.stdout.write(
-                    "No profile matched. Add one with register_profile. "
-                    "Nothing was captured and no camera was registered.\n"
+        if args.cmd == "join" or args.detect or args.process or args.bundle or args.url:
+            import os
+            try:
+                found = detect(
+                    getattr(args, "process", None),
+                    platform=args.platform,
+                    bundle_id=getattr(args, "bundle", None),
+                    url=getattr(args, "url", None),
+                    have_vcam=True if args.vcam else None,
+                    opens_v4l2=bool(args.v4l2),
+                    sandboxed=bool(args.sandboxed),
+                    capture=args.capture,
+                    windows_build=args.windows_build,
+                    environ=dict(os.environ),
                 )
+            except ValueError as exc:
+                sys.stderr.write(f"error: {exc}\n")
                 return 2
-            sys.stdout.write(
-                f"{found.title} ({found.variant_id}) platform={found.platform or 'unspecified'}\n"
-                f"camera={found.camera}\nmic={found.mic}\ne2e={found.e2e}\n"
-                f"{found.note}\n{found.limit}\n"
-            )
+            sys.stdout.write(format_detection(found))
             return 0
         sys.stdout.write(coverage_guide_text())
         return 0

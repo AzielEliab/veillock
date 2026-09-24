@@ -100,7 +100,8 @@ ENGULF_ROWS: tuple[EngulfRow, ...] = (
             "driver is shipped. VeilLock does not hook capture APIs. Other physical "
             "cameras remain visible; an app that saved a device id may still need one "
             "pick. This is not a per-process hide of /dev/video*. A DirectShow-only app "
-            "that ignores the Windows camera pipeline will not see the camera. The "
+            "that ignores the Windows camera pipeline will not see the camera. "
+            "Windows 10 and builds before 22000 cannot register it. The "
             "microphone is CABLE Output only if VB-Audio Virtual Cable is installed; "
             "VeilLock does not create that microphone. If the Python feeder is absent "
             "the picture is a solid veil, never the physical camera. Without the built "
@@ -315,6 +316,14 @@ _WINDOWS_REFUSED = (
     "The app's stream is obfuscation, not AES-256-GCM."
 )
 
+_WINDOWS_OLD = (
+    "Windows engulf is refused because this build is older than 22000. "
+    "Windows 10 has no MFCreateVirtualCamera, so no camera was registered. "
+    "VeilLock does not hook capture APIs and does not ship a kernel driver or a DirectShow filter. "
+    "The microphone is CABLE Output if VB-Audio Virtual Cable is installed. "
+    "The app's stream is obfuscation, not AES-256-GCM."
+)
+
 _WINDOWS_READY = (
     "Windows 11 Media Foundation virtual camera. The friendly name argument is VeilLock. "
     "Windows appends Windows Virtual Camera, so the picker shows VeilLock Windows Virtual Camera. "
@@ -335,6 +344,7 @@ def plan_engulf(
     video_device: str = "/dev/video10",
     have_vcam: bool | None = None,
     vcam_helper: str | None = None,
+    windows_build: int | None = None,
 ) -> EngulfPlan:
     plat = host_platform(platform)
     env = dict(os.environ)
@@ -355,12 +365,16 @@ def plan_engulf(
             [],
             env,
             "macOS engulf is refused. SIP and the hardened runtime block injection. "
-            "Apple-signed FaceTime cannot be injected into. Select the virtual camera in the app. "
+            "Apple-signed FaceTime cannot be injected into. "
+            "The one command is veillock wrap --mic, then select the virtual camera. "
+            "BlackHole 2ch is the microphone only if BlackHole is installed. "
             "The app's stream is obfuscation, not AES-256-GCM.",
         )
     if plat == "windows":
         from veillock.wincam import HELPER_EXE, helper_present
 
+        if windows_build is not None and windows_build < 22000:
+            return EngulfPlan(plat, False, [], env, _WINDOWS_OLD)
         helper = vcam_helper or str(HELPER_EXE)
         present = helper_present() if have_vcam is None else bool(have_vcam)
         if vcam_helper and have_vcam is None:

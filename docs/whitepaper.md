@@ -283,6 +283,7 @@ still need one pick. Without the helper, no camera is registered. The
 microphone is still CABLE Output if VB-Audio Virtual Cable is installed.
 macOS is not engulfed: SIP and the hardened runtime block injection, and
 Apple-signed FaceTime cannot be injected into. iOS apps cannot be wrapped.
+The same report covers a Teams-style gallery, Meet, Zoom, Webex, Slack huddles, and Discord. One outgoing camera feeds the grid. That picture is the veil or the scramble, not an AES mesh. Screen share is outside the camera wrap. `veillock join` reads a join link and does not enter the meeting. Profile schema is 1. How the app opens the camera outranks a process name. An unknown app gets that safe default and is not captured. Windows 10, DirectShow-only apps, Flatpak, Snap, Firefox, and Safari stay outside the paths they cannot use.
 Chromium pages are engulfed by the extension, which wraps `getUserMedia`
 and, when both people have the key, seals each encoded frame with
 AES-256-GCM. A relay that forwards those frames unchanged sees ciphertext.

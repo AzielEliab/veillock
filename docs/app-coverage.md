@@ -28,7 +28,11 @@ register_profile(AppProfile(
 ))
 ```
 
-`detect(process, platform, bundle_id, url)` chooses the variant. `opens_v4l2=True` selects `engulf-v4l2` only for a native Linux app that is otherwise `pick-cam`. `sandboxed=True` (Flatpak, Snap, portal) stays `pick-cam`. `have_vcam=False` turns `win11-vcam` into `unregistered`.
+Profiles are schema 1. `register_profile` refuses any other schema and does not load it.
+
+`detect` names the app from a process, a bundle id, or a join-link host. The capture hint then overrides that name. `capture=v4l2` selects `engulf-v4l2` only on Linux when the app is not sandboxed. `capture=pipewire`, `portal`, `flatpak`, or `snap`, or a `FLATPAK_ID` / `SNAP` environment, stays `pick-cam`. `capture=directshow` is `directshow-only`: no DirectShow filter is shipped. `windows_build` below 22000 is `unregistered` even if the helper exists. Firefox and Safari stay `pick-cam` with no encoded-frame AES. An unknown app still returns a report (`matched=no`) from these same rules. Nothing is captured and no camera is registered.
+
+`veillock join <url>` prints that report for a Teams, Meet, Zoom, Webex, Slack, or Discord link. It does not join the meeting. Gallery calls are one outgoing camera. The gallery is not an AES mesh. Screen share is outside the camera wrap. The same rules apply to every profiled meeting app. A new app is still a profile entry plus a test.
 
 ## Strategy matrix
 
@@ -36,7 +40,8 @@ register_profile(AppProfile(
 |----------|--------------------|--------------|
 | `engulf-v4l2` | Camera | Linux, and only when that process opens `/dev/video*` itself. `bwrap` or `LD_PRELOAD`. PipeWire, the portal, Flatpak, and Snap are not engulfed. The app still gets the veil or the scramble, which is **not AES-256-GCM**. |
 | `win11-vcam` | Camera | Windows 11 build 22000+ while `veilcam-register.exe` is running. `MFCreateVirtualCamera`. Friendly name argument **VeilLock**. The picker shows **VeilLock Windows Virtual Camera**. No kernel driver. VeilLock does not hook. Other cameras remain. A saved device id may still need one pick. DirectShow-only apps that skip the Windows camera pipeline will not see it. |
-| `unregistered` | Camera | The Windows helper is not running. No VeilLock camera was registered. |
+| `unregistered` | Camera | The Windows helper is not running, or the build is Windows 10 / older than 22000. No VeilLock camera was registered. |
+| `directshow-only` | Camera | The app opens the camera through DirectShow only. VeilLock does not ship a DirectShow filter and does not hook. The Media Foundation camera will not appear. |
 | `extension-getusermedia` | Camera and mic | Chromium extension wraps `getUserMedia`. Default image is a generated veil. Firefox and Safari are not this strategy. |
 | `pick-cam` | Camera | The person selects VeilLock. This is the macOS path. SIP and the hardened runtime block injection. Apple-signed FaceTime cannot be injected into. |
 | `impossible` | Camera and mic | The client cannot select a third-party camera. iPhone FaceTime cannot. iOS apps cannot be wrapped. |

@@ -5,10 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from veillock.cli import main
+import pytest
+
 from veillock.coverage import (
     CAMERA_STRATEGIES,
     E2E_STRATEGIES,
     MIC_STRATEGIES,
+    PROFILE_SCHEMA,
+    RESOLVED_ONLY,
     AppProfile,
     Variant,
     builtin_profiles,
@@ -27,12 +31,13 @@ def test_builtin_set_is_fifty_profiles_and_only_known_strategies() -> None:
     assert len(rows) == 50
     assert len({row.app_id for row in rows}) == 50
     for row in rows:
+        assert row.schema == PROFILE_SCHEMA
         assert row.variants
         for variant in row.variants:
             assert variant.e2e in E2E_STRATEGIES
             for _key, value in variant.camera:
                 assert value in CAMERA_STRATEGIES
-                assert value != "unregistered"
+                assert value not in RESOLVED_ONLY
             for _key, value in variant.mic:
                 assert value in MIC_STRATEGIES
     text = coverage_guide_text()
@@ -42,6 +47,9 @@ def test_builtin_set_is_fifty_profiles_and_only_known_strategies() -> None:
     assert "iPhone FaceTime cannot" in text
     assert "CABLE Output" in text
     assert "does not hook" in text
+    assert "schema is 1" in text
+    assert "not an AES mesh" in text
+    assert "DirectShow" in text
     paper = (ROOT / "docs" / "app-coverage.md").read_text(encoding="utf-8")
     assert "TalkingPointz" in paper
     assert "not a market-share ranking" in paper
@@ -75,7 +83,11 @@ def test_detect_windows_zoom_facetime_and_meet() -> None:
     assert direct is not None and direct.camera == "engulf-v4l2"
     sandboxed = detect("zoom", platform="linux", opens_v4l2=True, sandboxed=True)
     assert sandboxed is not None and sandboxed.camera == "pick-cam"
-    assert detect("not-a-real-call-app") is None
+    unknown = detect("not-a-real-call-app", platform="linux")
+    assert unknown.matched is False and unknown.app_id == "unknown"
+    assert unknown.camera == "pick-cam" and unknown.schema == PROFILE_SCHEMA
+    fresh = detect("brand-new-dialer", platform="linux", capture="v4l2")
+    assert fresh.matched is False and fresh.camera == "engulf-v4l2"
 
 
 def test_register_profile_is_the_extension_point() -> None:
@@ -104,7 +116,58 @@ def test_register_profile_is_the_extension_point() -> None:
         assert found.camera == "win11-vcam"
     finally:
         remove_profile("example-call")
-    assert detect("example-call", platform="windows") is None
+    fallback = detect("example-call", platform="windows", have_vcam=False)
+    assert fallback.app_id == "unknown" and fallback.camera == "unregistered"
+
+
+def test_meetings_share_one_report_and_unknown_capture_wins() -> None:
+    teams = detect(url="https://teams.microsoft.com/l/meetup-join/19%3ameeting", platform="chromium")
+    assert teams is not None and teams.app_id == "teams" and teams.kind == "browser"
+    assert teams.camera == "extension-getusermedia" and teams.e2e == "insertable-streams"
+    assert "not an AES mesh" in teams.meeting
+    assert "Screen share" in teams.meeting
+    firefox = detect("firefox", platform="linux", url="https://teams.live.com/meet/abc")
+    assert firefox is not None and firefox.app_id == "teams"
+    assert firefox.camera == "pick-cam" and firefox.e2e == "none"
+    desktop = detect("ms-teams", platform="windows", have_vcam=True, windows_build=22631)
+    assert desktop is not None and desktop.camera == "win11-vcam" and desktop.kind == "native"
+    windows_10 = detect("ms-teams", platform="windows", have_vcam=True, windows_build=19041)
+    assert windows_10 is not None and windows_10.camera == "unregistered"
+    assert "22000" in windows_10.limit
+    directshow = detect("teams", platform="windows", have_vcam=True, windows_build=22631, capture="directshow")
+    assert directshow is not None and directshow.camera == "directshow-only"
+    assert directshow.e2e == "veillock-link"
+    boxed = detect("teams", platform="linux", opens_v4l2=True, environ={"FLATPAK_ID": "com.microsoft.Teams"})
+    assert boxed is not None and boxed.camera == "pick-cam"
+    meet = detect(url="https://meet.google.com/abc-defg-hij", platform="chromium")
+    zoom = detect(url="https://zoom.us/j/123", platform="chromium")
+    assert meet is not None and zoom is not None
+    assert meet.meeting == teams.meeting == zoom.meeting
+
+
+def test_schema_mismatch_is_refused() -> None:
+    profile = AppProfile(
+        app_id="future-call",
+        title="Future",
+        group="workplace",
+        note="nope",
+        schema=PROFILE_SCHEMA + 1,
+        variants=(
+            Variant(
+                variant_id="future-call-desktop",
+                kind="native",
+                processes=("future-call",),
+                bundles=(),
+                hosts=(),
+                camera=(("linux", "pick-cam"),),
+                mic=(("linux", "linux-veillock-mic"),),
+                e2e="veillock-link",
+            ),
+        ),
+    )
+    with pytest.raises(ValueError, match="schema"):
+        register_profile(profile)
+    assert detect("future-call", platform="linux").app_id == "unknown"
 
 
 def test_cli_compat_detects_without_registering_a_camera(capsys) -> None:
@@ -113,3 +176,12 @@ def test_cli_compat_detects_without_registering_a_camera(capsys) -> None:
     assert "camera=win11-vcam" in out
     assert "CABLE Output" in out
     assert "not AES-256-GCM" in out
+    assert main(["join", "https://teams.microsoft.com/l/meetup-join/abc", "--platform", "chromium"]) == 0
+    joined = capsys.readouterr().out
+    assert "camera=extension-getusermedia" in joined
+    assert "matched=yes" in joined
+    assert "not an AES mesh" in joined
+    assert main(["join", "https://calls.example.test/room", "--platform", "linux"]) == 0
+    unknown = capsys.readouterr().out
+    assert "matched=no" in unknown
+    assert "camera=pick-cam" in unknown
