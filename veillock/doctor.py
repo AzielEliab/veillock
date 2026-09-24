@@ -52,12 +52,17 @@ def run() -> dict[str, Any]:
 
 
 def format_report(payload: dict[str, Any]) -> str:
-    lines = [f"VeilLock doctor {payload.get('version')}"]
+    lines = [f"VeilLock doctor {payload.get('version')}", ""]
     for c in payload.get("checks") or []:
-        mark = "ok" if c.get("ok") else "FAIL"
+        mark = "pass" if c.get("ok") else "FAIL"
         detail = f"  {c.get('detail')}" if c.get("detail") else ""
         lines.append(f"{mark}  {c.get('id')}{detail}")
-    lines.append("doctor: healthy" if payload.get("ok") else "doctor: FAILED")
+    lines.append("")
+    if payload.get("ok"):
+        lines.append("doctor: healthy")
+    else:
+        lines.append("doctor: FAILED")
+        lines.append("Next: veillock doctor --json")
     lines.append(str(payload.get("limitation") or ""))
     return "\n".join(lines)
 

@@ -1,19 +1,23 @@
 """Command-line interface for VeilLock.
 
-    veillock encrypt --in frames.npy --out cipher.npz --mode private|broadcast|obfuscation
-    veillock decrypt --in cipher.npz --out frames.npy --key ...
+    veillock
+    veillock ui [--host 127.0.0.1] [--port 8761]
     veillock tether [--source camera|screen] [--mode obfuscation] [--device 0]
     veillock tether --obfuscation-off
     veillock tether --azos-accept --actor NAME
     veillock azos
     veillock apps
-    veillock ui [--host 127.0.0.1] [--port 8761]
+    veillock doctor
+    veillock encrypt --in frames.npy --out cipher.npz --mode private|broadcast|obfuscation
+    veillock decrypt --in cipher.npz --out frames.npy --key ...
     veillock version
 """
 
 from __future__ import annotations
 
 import argparse
+import json
+import re
 import secrets
 import sys
 from typing import Sequence
@@ -31,31 +35,126 @@ from veillock.engine import (
 from veillock.modes import Mode
 from veillock.pulse import HaltedError
 
+WELCOME = """\
+VeilLock keeps your camera veiled until you lift it.
 
-def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="veillock",
-        description=(
-            "VeilLock — consent-gated camera protection via AZ-OS "
-            "(Aziel Eliab). Default: natural camera/video veil. "
-            "Local UI: `veillock ui` at http://127.0.0.1:8761."
-        ),
+You lift the veil by turning obfuscation off, or by accepting a call through AZ-OS.
+
+Next:
+  veillock ui       Open the local app
+  veillock doctor   Check this computer
+  veillock tether   Send your camera through VeilLock
+  veillock --help   See every command
+
+Author: Aziel Eliab
+"""
+
+ROOT_HELP = f"""\
+veillock — keep your camera veiled until you lift it
+
+usage:
+  veillock
+  veillock <command> [options]
+  veillock ui
+
+VeilLock keeps your camera veiled until you lift it.
+Author: Aziel Eliab. Version {__version__}.
+
+Common commands:
+  ui (serve)    Open the local app at http://127.0.0.1:8761
+  tether        Send your camera through VeilLock
+  azos          Show whether the veil is on
+  doctor        Check that this computer is ready
+  apps          How to pick VeilLock in Zoom, Skype, FaceTime, Meet, Teams
+  version       Print the version
+
+Advanced:
+  encrypt       Seal an RGB frame file (.npy) to cipher.npz
+  decrypt       Open a sealed file back to frames
+
+Run veillock <command> --help for that command's options.
+Machine-readable output: add --json on doctor, azos, encrypt, and decrypt.
+
+Examples:
+  veillock
+  veillock ui
+  veillock doctor
+  veillock tether
+  veillock --help
+"""
+
+
+class VeilParser(argparse.ArgumentParser):
+    """Root help reads like git/npm. Misuse prints a reason and a next step."""
+
+    veil_root: bool = False
+
+    def format_help(self) -> str:
+        if self.veil_root:
+            return ROOT_HELP
+        return super().format_help()
+
+    def error(self, message: str) -> None:
+        self.exit(2, _plain_error(self.prog, message) + "\n")
+
+
+def _plain_error(prog: str, message: str) -> str:
+    choice = re.search(r"invalid choice: '([^']+)'", message)
+    if choice:
+        bad = choice.group(1)
+        return f'Unknown command "{bad}". Try: veillock ui   or   veillock --help'
+    if message.startswith("unrecognized arguments"):
+        extra = message.split(":", 1)[-1].strip()
+        return f"Unknown option {extra}. Try: {prog} --help"
+    if "required" in message:
+        if prog.endswith(" encrypt"):
+            return (
+                "Encrypt needs an input file, an output file, and a mode. "
+                "Try: veillock encrypt --in frames.npy --out cipher.npz --mode private"
+            )
+        if prog.endswith(" decrypt"):
+            return (
+                "Decrypt needs an input file and an output file. "
+                "Try: veillock decrypt --in cipher.npz --out frames.npy --key <hex>"
+            )
+        if prog.endswith(" ui") or prog.endswith(" serve"):
+            return "Try: veillock ui"
+        return f"Missing required options. Try: {prog} --help"
+    if message.startswith("argument"):
+        return f"{message}. Try: {prog} --help"
+    return f"{message}. Try: {prog} --help"
+
+
+def _die(text: str, code: int = 2) -> None:
+    sys.stderr.write(text.rstrip() + "\n")
+    raise SystemExit(code)
+
+
+def _build_parser() -> VeilParser:
+    parser = VeilParser(prog="veillock")
+    parser.veil_root = True
+    sub = parser.add_subparsers(dest="cmd", required=False, parser_class=VeilParser)
+    common = {"formatter_class": argparse.RawDescriptionHelpFormatter}
+
+    p_enc = sub.add_parser(
+        "encrypt",
+        help="Seal an RGB frame file.",
+        description="Seal an RGB frame file (.npy) to cipher.npz.",
+        epilog="Example: veillock encrypt --in frames.npy --out cipher.npz --mode private",
+        **common,
     )
-    sub = parser.add_subparsers(dest="cmd", required=True)
-
-    p_enc = sub.add_parser("encrypt", help="Encrypt an RGB frame stack (.npy) to cipher.npz.")
     p_enc.add_argument("--in", dest="inp", required=True, help="Input frames.npy (N,H,W,3) uint8.")
     p_enc.add_argument("--out", dest="out", required=True, help="Output cipher.npz.")
     p_enc.add_argument(
         "--mode",
         required=True,
         choices=("private", "broadcast", "obfuscation"),
-        help="Deployment mode.",
+        help="private, broadcast, or obfuscation.",
     )
     p_enc.add_argument(
         "--key",
         default=None,
-        help="Optional 64-char hex session key (generated if omitted).",
+        help="Optional 64-character hex session key (generated if omitted).",
     )
     p_enc.add_argument(
         "--receiver-secret",
@@ -68,44 +167,79 @@ def _build_parser() -> argparse.ArgumentParser:
         default=120,
         help="Forward-secure rotation period in frames (60–240, default 120).",
     )
+    p_enc.add_argument("--json", action="store_true", dest="as_json", help="Print the result as JSON.")
 
-    p_dec = sub.add_parser("decrypt", help="Decrypt cipher.npz to frames.npy.")
+    p_dec = sub.add_parser(
+        "decrypt",
+        help="Open a sealed frame file.",
+        description="Open cipher.npz back to frames.npy.",
+        epilog="Example: veillock decrypt --in cipher.npz --out frames.npy --key <hex>",
+        **common,
+    )
     p_dec.add_argument("--in", dest="inp", required=True, help="Input cipher.npz.")
     p_dec.add_argument("--out", dest="out", required=True, help="Output frames.npy.")
     p_dec.add_argument(
         "--key",
         default=None,
-        help="64-char hex session key (root key; required for private/obfuscation).",
+        help="64-character hex session key (required for private and obfuscation).",
     )
     p_dec.add_argument(
         "--receiver-secret",
         default=None,
         help="Hex receiver secret (unwraps the broadcast package key).",
     )
+    p_dec.add_argument("--json", action="store_true", dest="as_json", help="Print the result as JSON.")
 
-    p_doc = sub.add_parser("doctor", help="Self-check: pulse, loopback, numpy. No network.")
+    p_doc = sub.add_parser(
+        "doctor",
+        help="Check that this computer is ready.",
+        description="Check pulse, loopback, and the AZ-OS veil. No network.",
+        epilog="Example: veillock doctor",
+        **common,
+    )
     p_doc.add_argument("--json", action="store_true", dest="as_json", help="Print doctor results as JSON.")
-    sub.add_parser("version", help="Print the VeilLock version and exit.")
+    sub.add_parser(
+        "version",
+        help="Print the version.",
+        description="Print the VeilLock version.",
+        epilog="Example: veillock version",
+        **common,
+    )
 
-    p_ui = sub.add_parser("ui", aliases=["serve"], help="Run the localhost UI (127.0.0.1).")
+    p_ui = sub.add_parser(
+        "ui",
+        aliases=["serve"],
+        help="Open the local app.",
+        description="Open the local app on this computer (127.0.0.1).",
+        epilog="Example: veillock ui",
+        **common,
+    )
     p_ui.add_argument("--host", default="127.0.0.1", help="Bind host (default 127.0.0.1).")
     p_ui.add_argument("--port", type=int, default=8761, help="Bind port (default 8761).")
 
     p_tether = sub.add_parser(
         "tether",
-        help="Pipe YOUR camera/video through VeilLock. Default: natural veil.",
+        help="Send your camera through VeilLock.",
+        description="Send your camera or screen through VeilLock. The public feed stays veiled until you lift it.",
+        epilog=(
+            "Examples:\n"
+            "  veillock tether\n"
+            "  veillock tether --obfuscation-off\n"
+            "  veillock tether --azos-accept --actor \"your name\""
+        ),
+        **common,
     )
     p_tether.add_argument(
         "--source",
         choices=("camera", "screen"),
         default="camera",
-        help="Local source: this machine's camera (default) or this machine's screen.",
+        help="This machine's camera (default) or this machine's screen.",
     )
     p_tether.add_argument(
         "--mode",
         choices=("obfuscation", "private", "broadcast"),
         default="obfuscation",
-        help="Seal mode (default obfuscation). Public feed stays veiled unless you lift it.",
+        help="Seal mode (default obfuscation). The public feed stays veiled until you lift it.",
     )
     p_tether.add_argument(
         "--device",
@@ -141,9 +275,18 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser(
         "apps",
-        help="How to pick VeilLock in Zoom, Skype, FaceTime (Mac), Meet, Teams.",
+        help="How to pick VeilLock in a call app.",
+        description="How to pick VeilLock in Zoom, Skype, FaceTime (Mac), Meet, and Teams.",
+        epilog="Example: veillock apps",
+        **common,
     )
-    p_azos = sub.add_parser("azos", help="Show the AZ-OS consent hook status.")
+    p_azos = sub.add_parser(
+        "azos",
+        help="Show whether the veil is on.",
+        description="Show the AZ-OS consent hook. You control the veil.",
+        epilog="Example: veillock azos",
+        **common,
+    )
     p_azos.add_argument("--json", action="store_true", dest="as_json", help="Print hook status as JSON.")
     p_azos.add_argument(
         "--accept",
@@ -171,30 +314,71 @@ def _parse_hex(label: str, value: str, expected_len: int | None = None) -> bytes
     try:
         raw = bytes.fromhex(value.strip())
     except ValueError as exc:
-        raise SystemExit(f"error: {label} must be hex: {exc}") from exc
+        _die(f"The {label} must be hex ({exc}). Try: veillock --help")
     if expected_len is not None and len(raw) != expected_len:
-        raise SystemExit(f"error: {label} must be {expected_len} bytes ({expected_len * 2} hex chars)")
+        _die(
+            f"The {label} must be {expected_len} bytes ({expected_len * 2} hex characters). "
+            "Try: veillock --help"
+        )
     return raw
 
 
 def _load_frames(path: str) -> np.ndarray:
     try:
         arr = np.load(path)
-    except FileNotFoundError as exc:
-        raise SystemExit(f"error: {exc}") from exc
+    except FileNotFoundError:
+        _die(f"Could not find {path}. Try: check the path, then veillock encrypt --help")
     except Exception as exc:  # noqa: BLE001
-        raise SystemExit(f"error: failed to read frames: {exc}") from exc
+        _die(f"Could not read frames ({exc}). Try: veillock encrypt --help")
     arr = np.ascontiguousarray(arr, dtype=np.uint8)
     if arr.ndim == 3 and arr.shape[-1] == 3:
         arr = arr[None, ...]
     if arr.ndim != 4 or arr.shape[-1] != 3:
-        raise SystemExit("error: frames.npy must have shape (N,H,W,3) or (H,W,3) uint8")
+        _die(
+            "Frames must be uint8 RGB with shape (N,H,W,3) or (H,W,3). "
+            "Try: veillock encrypt --help"
+        )
     return arr
+
+
+def _azos_human(payload: dict) -> str:
+    veil = payload["veil"]
+    if veil == "lifted":
+        sentence = "The veil is lifted."
+    else:
+        sentence = "The veil is on. Your camera stays protected until you lift it."
+    return (
+        "VeilLock AZ-OS hook\n"
+        f"veil={veil}\n"
+        f"{sentence}\n"
+        f"Reason: {payload['reason']}\n"
+        f"obfuscation_on={payload['obfuscation_on']}  "
+        f"call_accepted={payload['call_accepted']}\n"
+        "Author: Aziel Eliab\n"
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
-    args = parser.parse_args(argv)
+    if argv is None:
+        argv = sys.argv[1:]
+    argv = list(argv)
+    if not argv:
+        sys.stdout.write(WELCOME)
+        return 0
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        code = exc.code
+        if code is None or code == 0:
+            return 0
+        if isinstance(code, int):
+            return code
+        return 2
+
+    if args.cmd is None:
+        sys.stdout.write(WELCOME)
+        return 0
 
     if args.cmd == "doctor":
         from veillock.doctor import doctor_cli
@@ -210,8 +394,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         try:
             serve(host=args.host, port=args.port)
-        except ValueError as exc:
-            sys.stderr.write(f"error: {exc}\n")
+        except ValueError:
+            sys.stderr.write("VeilLock stays on this computer (127.0.0.1). Try: veillock ui\n")
             return 2
         return 0
 
@@ -224,8 +408,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.cmd == "azos":
-        import json
-
         from veillock.azos import HOOK
 
         if args.obfuscation_off:
@@ -240,13 +422,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.as_json:
             sys.stdout.write(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
         else:
-            sys.stdout.write(
-                f"VeilLock AZ-OS hook  veil={payload['veil']}  "
-                f"reason={payload['reason']}\n"
-                f"obfuscation_on={payload['obfuscation_on']}  "
-                f"call_accepted={payload['call_accepted']}\n"
-                "You control the veil. Author: Aziel Eliab.\n"
-            )
+            sys.stdout.write(_azos_human(payload))
         return 0
 
     if args.cmd == "tether":
@@ -277,22 +453,35 @@ def main(argv: Sequence[str] | None = None) -> int:
             stream = session.encrypt_frames(frames)
             save_cipher_npz(args.out, stream)
         except (HaltedError, ValueError) as exc:
-            sys.stderr.write(f"error: {exc}\n")
+            sys.stderr.write(f"{exc}\nNext: veillock doctor\n")
             return 2
-        sys.stdout.write(f"session_key={session_key.hex()}\n")
-        if receiver_secret is not None:
-            sys.stdout.write(f"receiver_secret={receiver_secret.hex()}\n")
-        sys.stdout.write(f"frames={frames.shape[0]} mode={mode.value} out={args.out}\n")
+        if args.as_json:
+            payload = {
+                "session_key": session_key.hex(),
+                "frames": int(frames.shape[0]),
+                "mode": mode.value,
+                "out": args.out,
+            }
+            if receiver_secret is not None:
+                payload["receiver_secret"] = receiver_secret.hex()
+            sys.stdout.write(json.dumps(payload) + "\n")
+        else:
+            sys.stdout.write(f"session_key={session_key.hex()}\n")
+            if receiver_secret is not None:
+                sys.stdout.write(f"receiver_secret={receiver_secret.hex()}\n")
+            sys.stdout.write(f"frames={frames.shape[0]} mode={mode.value} out={args.out}\n")
         return 0
 
     if args.cmd == "decrypt":
         try:
             stream = load_cipher_npz(args.inp)
-        except FileNotFoundError as exc:
-            sys.stderr.write(f"error: {exc}\n")
+        except FileNotFoundError:
+            sys.stderr.write(
+                f"Could not find {args.inp}. Try: check the path, then veillock decrypt --help\n"
+            )
             return 2
         except Exception as exc:  # noqa: BLE001
-            sys.stderr.write(f"error: failed to read cipher package: {exc}\n")
+            sys.stderr.write(f"Could not read the cipher package ({exc}). Try: veillock decrypt --help\n")
             return 2
 
         try:
@@ -316,17 +505,23 @@ def main(argv: Sequence[str] | None = None) -> int:
                     **extra,
                 )
             else:
-                sys.stderr.write("error: decrypt requires --key or --receiver-secret\n")
+                sys.stderr.write(
+                    "Decrypt needs a key or a receiver secret. "
+                    "Try: veillock decrypt --in cipher.npz --out frames.npy --key <hex>\n"
+                )
                 return 2
             out = session.decrypt_frames(stream)
         except (HaltedError, DecryptError, ValueError) as exc:
-            sys.stderr.write(f"error: {exc}\n")
+            sys.stderr.write(f"{exc}\nNext: check the key, then veillock decrypt --help\n")
             return 1
         np.save(args.out, out)
-        sys.stdout.write(f"frames={out.shape[0]} out={args.out}\n")
+        if args.as_json:
+            sys.stdout.write(json.dumps({"frames": int(out.shape[0]), "out": args.out}) + "\n")
+        else:
+            sys.stdout.write(f"frames={out.shape[0]} out={args.out}\n")
         return 0
 
-    parser.error(f"unknown command {args.cmd!r}")
+    _die(f'Unknown command "{args.cmd}". Try: veillock ui   or   veillock --help')
     return 2
 
 

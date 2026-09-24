@@ -121,6 +121,62 @@ def test_wrong_key_cli_fails(tmp_path: Path, frames_16: np.ndarray, session_key:
     assert not rec.exists()
 
 
+def test_bare_command_is_welcome(capsys) -> None:
+    assert main([]) == 0
+    out = capsys.readouterr().out
+    assert "VeilLock keeps your camera veiled" in out
+    assert "veillock ui" in out
+    assert "veillock doctor" in out
+    assert "Author: Aziel Eliab" in out
+    assert "arguments are required" not in out
+
+
+def test_unknown_command_has_next_step(capsys) -> None:
+    assert main(["bogus"]) == 2
+    err = capsys.readouterr().err
+    assert 'Unknown command "bogus"' in err
+    assert "veillock --help" in err
+    assert "arguments are required" not in err
+
+
+def test_encrypt_missing_args_has_next_step(capsys) -> None:
+    assert main(["encrypt"]) == 2
+    err = capsys.readouterr().err
+    assert "Try: veillock encrypt" in err
+
+
+def test_encrypt_json_keeps_fields(tmp_path: Path, frames_16: np.ndarray, session_key: bytes, capsys) -> None:
+    inp = tmp_path / "frames.npy"
+    outp = tmp_path / "cipher.npz"
+    np.save(inp, frames_16)
+    assert (
+        main(
+            [
+                "encrypt",
+                "--in",
+                str(inp),
+                "--out",
+                str(outp),
+                "--mode",
+                "private",
+                "--key",
+                session_key.hex(),
+                "--rotation-interval",
+                "60",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    import json
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["session_key"] == session_key.hex()
+    assert payload["mode"] == "private"
+    assert payload["frames"] == frames_16.shape[0]
+    assert payload["out"] == str(outp)
+
+
 def test_help_lists_ui_and_version() -> None:
     from veillock.cli import _build_parser
 
