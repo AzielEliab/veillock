@@ -217,6 +217,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_engulf.add_argument("app", nargs=argparse.REMAINDER, help="Command to start, after --.")
     p_engulf.add_argument("--video", default="/dev/video10", help="VeilLock V4L2 device to expose as the camera.")
+    p_engulf.add_argument("--record", default=None, help="Seal what you send to an AES-256-GCM .veilrec before launch.")
+    p_engulf.add_argument("--key", default=None, help="64-char hex key for --record. Not stored in the file.")
+    p_engulf.add_argument("--frames", default=None, help="RGB .npy to seal when recording from engulf.")
+    p_engulf.add_argument("--audio-in", dest="audio_in", default=None, help="PCM .npy to seal when recording from engulf.")
 
     p_link = sub.add_parser(
         "link",
@@ -234,24 +238,35 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Unveil a captured call stack with the out-of-band key. Not an AES decrypt.",
     )
     p_recv.add_argument("--in", dest="inp", required=True)
-    p_recv.add_argument("--out", dest="out", required=True)
+    p_recv.add_argument("--out", dest="out", default=None, help="Plaintext export path. Requires --export.")
+    p_recv.add_argument("--record", default=None, help="Seal the unveiled frames to an AES-256-GCM .veilrec.")
+    p_recv.add_argument(
+        "--export",
+        action="store_true",
+        help="Write plaintext. This leaves VeilLock's protection. Off unless you pass this flag.",
+    )
     p_recv.add_argument("--key", required=True, help="64-char hex call key.")
     p_recv.add_argument("--audio-in", dest="audio_in", default=None)
     p_recv.add_argument("--audio-out", dest="audio_out", default=None)
     p_recv.add_argument("--epoch", type=int, default=0, help="Epoch for audio only. Video reads its own sync strip.")
 
-    p_rec = sub.add_parser("record", help="Seal frames to an AES-256-GCM .veilrec. This path is encryption.")
-    p_rec.add_argument("--in", dest="inp", required=True)
+    p_rec = sub.add_parser("record", help="Seal video and/or audio to an AES-256-GCM .veilrec. Nothing plaintext is written.")
+    p_rec.add_argument("--in", dest="inp", default=None, help="RGB .npy. Omit for audio-only.")
     p_rec.add_argument("--out", dest="out", required=True)
     p_rec.add_argument("--key", default=None)
-    p_rec.add_argument("--audio-in", dest="audio_in", default=None)
+    p_rec.add_argument("--audio-in", dest="audio_in", default=None, help="PCM int16 .npy. Omit for video-only.")
     p_rec.add_argument("--rotation-interval", dest="rotation_interval", type=int, default=120)
 
-    p_play = sub.add_parser("play", help="Decrypt an AES-256-GCM .veilrec. Wrong key fails closed.")
+    p_play = sub.add_parser("play", help="Decrypt a .veilrec in memory. Wrong key opens nothing. Plaintext export is off.")
     p_play.add_argument("--in", dest="inp", required=True)
-    p_play.add_argument("--out", dest="out", required=True)
+    p_play.add_argument("--out", dest="out", default=None, help="Plaintext video export. Requires --export.")
     p_play.add_argument("--key", required=True)
-    p_play.add_argument("--audio-out", dest="audio_out", default=None)
+    p_play.add_argument("--audio-out", dest="audio_out", default=None, help="Plaintext PCM export. Requires --export.")
+    p_play.add_argument(
+        "--export",
+        action="store_true",
+        help="Write plaintext to --out or --audio-out. This leaves VeilLock's protection.",
+    )
 
     sub.add_parser("keygen", help="Print a pre-shared call key and an X25519 keypair.")
     p_agree = sub.add_parser("agree", help="Derive the call key from your X25519 private key and the peer public key.")
@@ -433,6 +448,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         if not app:
             sys.stderr.write("error: veillock engulf -- <app> [args]\n")
             return 2
+        if args.record:
+            if not args.key:
+                sys.stderr.write("error: --record needs --key. The key is not stored in the file.\n")
+                return 2
+            if not args.frames and not args.audio_in:
+                sys.stderr.write("error: --record needs --frames, --audio-in, or both\n")
+                return 2
+            from veillock.record import seal_recording
+
+            frames = _load_frames(args.frames) if args.frames else np.zeros((0, 1, 1, 3), dtype=np.uint8)
+            pcm = np.load(args.audio_in) if args.audio_in else None
+            try:
+                seal_recording(args.record, frames, _parse_hex("key", args.key, 32), pcm=pcm)
+            except (HaltedError, ValueError) as exc:
+                sys.stderr.write(f"error: {exc}\n")
+                return 2
+            sys.stdout.write(f"record={args.record} crypto=AES-256-GCM\n")
         return run_engulf(app, video_device=str(args.video))
 
     if args.cmd == "link":
@@ -500,12 +532,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             finally:
                 conn.close()
                 srv.close()
+            from veillock.record import seal_recording
+
             opened = []
             for blob in blobs:
                 payload, _kind = open_encoded(blob, key)
                 opened.append(decode_picture(payload))
-            np.save(args.out, np.stack(opened, axis=0))
-            sys.stdout.write(f"frames={len(opened)} out={args.out} aes=AES-256-GCM\n")
+            if not opened:
+                sys.stderr.write("error: link received no frames\n")
+                return 2
+            seal_recording(args.out, np.stack(opened, axis=0), key)
+            sys.stdout.write(
+                f"frames={len(opened)} record={args.out} aes=AES-256-GCM "
+                "plaintext_file=no\n"
+            )
             return 0
         except (OSError, ValueError, HaltedError, DecryptError) as exc:
             sys.stderr.write(f"error: {exc}\n")
@@ -521,20 +561,43 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (ValueError, HaltedError) as exc:
             sys.stderr.write(f"error: {exc}\n")
             return 2
-        np.save(args.out, out)
         kinds = ",".join(r.kind for r in results)
         authorized = sum(1 for r in results if r.authorized)
-        sys.stdout.write(
-            f"frames={out.shape[0]} authorized={authorized} kinds={kinds} out={args.out}\n"
-        )
+        received_pcm = None
+        if args.audio_in and args.record:
+            received_pcm = receive_audio(np.load(args.audio_in), key, epoch=int(args.epoch))
+        if args.record:
+            from veillock.record import seal_recording
+
+            seal_recording(args.record, out, key, pcm=received_pcm)
+            sys.stdout.write(f"record={args.record} crypto=AES-256-GCM frames={out.shape[0]}\n")
+        if args.out or args.audio_out:
+            if not args.export:
+                sys.stderr.write(
+                    "error: plaintext export is off. Pass --export and the key. This leaves VeilLock's protection.\n"
+                )
+                return 2
+            from veillock.honesty import EXPORT_LEAVES
+
+            sys.stdout.write(EXPORT_LEAVES + "\n")
+        if args.out:
+            np.save(args.out, out)
+            sys.stdout.write(
+                f"frames={out.shape[0]} authorized={authorized} kinds={kinds} export={args.out}\n"
+            )
+        else:
+            sys.stdout.write(f"frames={out.shape[0]} authorized={authorized} kinds={kinds} kept_in_memory=1\n")
         sys.stdout.write(results[0].note + "\n")
         if args.audio_in and args.audio_out:
+            if not args.export:
+                sys.stderr.write("error: --audio-out requires --export\n")
+                return 2
             pcm = np.load(args.audio_in)
             unveiled = receive_audio(pcm, key, epoch=int(args.epoch))
             np.save(args.audio_out, unveiled)
             sys.stdout.write(f"audio_out={args.audio_out} note=pcm-block-scramble-not-aes\n")
-        elif args.audio_in:
-            sys.stderr.write("error: --audio-in requires --audio-out\n")
+        elif args.audio_in and not args.record:
+            sys.stderr.write("error: --audio-in requires --record or --export --audio-out\n")
             return 2
         return 0
 
@@ -542,7 +605,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         from veillock.honesty import LOCAL_RECORDING
         from veillock.record import seal_recording
 
-        frames = _load_frames(args.inp)
+        if not args.inp and not args.audio_in:
+            sys.stderr.write("error: record needs --in, --audio-in, or both\n")
+            return 2
+        frames = _load_frames(args.inp) if args.inp else np.zeros((0, 1, 1, 3), dtype=np.uint8)
         session_key = _parse_hex("key", args.key, 32) if args.key else secrets.token_bytes(32)
         pcm = np.load(args.audio_in) if args.audio_in else None
         try:
@@ -573,12 +639,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (HaltedError, _DecryptError, ValueError) as exc:
             sys.stderr.write(f"error: {exc}\n")
             return 1
-        np.save(args.out, played.frames)
-        sys.stdout.write(f"frames={played.frames.shape[0]} crypto=AES-256-GCM out={args.out}\n")
+        pcm_n = 0 if played.pcm is None else int(played.pcm.shape[0])
+        sys.stdout.write(
+            f"frames={played.frames.shape[0]} audio_samples={pcm_n} crypto=AES-256-GCM in_memory=1\n"
+        )
         sys.stdout.write(played.note + "\n")
-        if args.audio_out:
-            np.save(args.audio_out, played.pcm if played.pcm is not None else np.zeros((0,), dtype=np.int16))
-            sys.stdout.write(f"audio_out={args.audio_out}\n")
+        if args.out or args.audio_out:
+            if not args.export:
+                sys.stderr.write(
+                    "error: plaintext export is off. Pass --export and the key. This leaves VeilLock's protection.\n"
+                )
+                return 2
+            from veillock.honesty import EXPORT_LEAVES
+
+            sys.stdout.write(EXPORT_LEAVES + "\n")
+            if args.out:
+                np.save(args.out, played.frames)
+                sys.stdout.write(f"export={args.out}\n")
+            if args.audio_out:
+                np.save(args.audio_out, played.pcm if played.pcm is not None else np.zeros((0,), dtype=np.int16))
+                sys.stdout.write(f"audio_export={args.audio_out}\n")
         return 0
 
     if args.cmd == "encrypt":

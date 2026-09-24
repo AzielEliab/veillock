@@ -344,7 +344,7 @@ Two different protections, and they are not the same thing:
 |------|------------|
 | Live call video | A keyed visual scramble (8×8 block permutation, rotation, and invert) plus a sync strip. An authorized peer running `veillock receive` approximately reverses a capture of the incoming call. **Obfuscation, not AES-256-GCM.** The call provider sees the natural veil, or the scrambled tiles after you lift the veil for a protected call. Lossy codecs (H.264, VP8, VP9, AV1) would destroy raw AES-GCM pixels, so those pixels are not what is sent. Channel swaps are not used; 4:2:0 color subsampling would not bring them back. |
 | Live call audio | Comfort noise until you lift the veil. Then the microphone, or a keyed permutation of short PCM blocks if you chose scramble. **Obfuscation, not AES-256-GCM.** Opus and AAC do not carry sample ciphertext. A speech codec that rebuilds phase does not return the waveform, with or without the key. A short block can still contain a speech fragment. PulseCheck failure is noise, never the microphone. |
-| `veillock record` / `veillock play` | **AES-256-GCM** per video frame and per audio chunk, with key rotation and PulseCheck. This is the encrypted copy. A cloud recording or an OBS capture of the call only has the veil or the scramble. |
+| `veillock record` / `veillock play` | **AES-256-GCM at rest** for video and audio, video only, or audio only. The key is not in the file. Playback decrypts in memory. Plaintext export is off unless you pass `--export`. A call app or a screen recorder pointed at a playing screen is not this file. |
 
 The veil stays on until you turn obfuscation off or accept a call
 through AZ-OS. You control the lift. PulseCheck failure halts to veil
@@ -360,7 +360,8 @@ veillock keygen
 veillock wrap --mic --source camera --feed scramble --azos-accept --actor "your name"
 veillock receive --in captured.npy --out picture.npy --key <hex>
 veillock record --in frames.npy --audio-in mic.npy --out clip.veilrec --key <hex>
-veillock play --in clip.veilrec --out frames.npy --key <hex>
+veillock play --in clip.veilrec --key <hex>
+veillock play --in clip.veilrec --export --out frames.npy --key <hex>
 ```
 
 `veillock wrap --mic` also feeds a microphone the call app can select.
@@ -379,6 +380,15 @@ Default public audio is comfort noise. After you lift the veil it is
 the real microphone, unless you passed `--audio-feed scramble`. The
 real microphone can be sealed into the AES-256-GCM `.veilrec` at the
 same time. The call app never receives that file.
+
+Every recording VeilLock writes is encrypted at rest and readable only
+through VeilLock. That includes what you send and the decrypted stream
+you receive, from the CLI, the loopback UI, `veillock engulf --record`,
+and the browser extension. Chunks are sealed and flushed one at a time,
+so a crash does not leave a plaintext file. `veillock play` and the UI
+player decrypt in memory. `--export` is off unless you ask for it, and
+it is labeled as leaving this protection. Someone can still point
+another camera or a screen recorder at a playing screen.
 
 Engulf and end-to-end encryption are separate from that picker.
 

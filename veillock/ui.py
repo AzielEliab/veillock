@@ -142,7 +142,7 @@ PAGE = r"""<!DOCTYPE html>
   <section class="card" id="wrap">
     <h2>Wrap any call</h2>
     <p class="help" id="wrap-honesty">__HONESTY__</p>
-    <p class="help">Preview uses a synthetic frame, a JPEG-like recompression, and the real key check. Numbers below are computed for this preview. The call path is a scramble. Record / play on this page seals a few synthetic frames with AES-256-GCM.</p>
+    <p class="help">Preview uses a synthetic frame, a JPEG-like recompression, and the real key check. Numbers below are computed for this preview. The call path is a scramble. Record / play on this page seals video and audio with AES-256-GCM and decrypts in memory. No plaintext file is written. Someone can still point a screen recorder at this window.</p>
     <p style="margin-top:0.95rem">
       <button class="primary" id="wrap-preview" type="button">Preview scramble</button>
       <button class="ghost" id="wrap-record" type="button">Seal a recording</button>
@@ -385,7 +385,7 @@ PAGE = r"""<!DOCTYPE html>
       $("wrap-key").hidden = false;
       $("wrap-key").textContent = "recording key (shown once)\\n" + data.session_key
         + "\\n" + data.note;
-      $("wrap-status").textContent = "AES-256-GCM recording round-trip matched=" + data.match
+      $("wrap-status").textContent = "AES-256-GCM recording stayed encrypted on disk. Playback matched in memory=" + data.match + ". A screen recorder pointed at this window can still see the picture."
         + " frames=" + data.frames + ". This file is encryption. It is not the call scramble.";
     } catch (e) {
       $("err").hidden = false;

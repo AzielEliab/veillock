@@ -221,7 +221,7 @@ const WRAP_SKILL_ADDENDUM = `
 | Live call video | Keyed 8×8 scramble (permutation, rotation, invert). Obfuscation. **Not AES-256-GCM.** The provider sees the veil or the tiles. A peer with the key gets an approximation after the call codec, not bit-exact plaintext. Channel swaps are not used; 4:2:0 would not bring them back. |
 | Live call audio | Comfort-noise veil until the user lifts it, then the microphone, or a keyed PCM block permutation if scramble was chosen. **Not AES-256-GCM.** Opus and AAC do not carry sample ciphertext. A phase-rebuilding speech codec does not return the waveform. Short blocks can still contain speech fragments. |
 | Virtual microphone | Linux: VeilLock creates **VeilLock Microphone** with pactl (not a kernel driver). macOS: no CoreAudio plugin; the app selects **BlackHole 2ch** only if BlackHole is installed. Windows: no driver; the app selects **CABLE Output** only if VB-Audio Virtual Cable is installed, and VeilLock writes to CABLE Input. |
-| \`veillock record\` / \`play\` | **AES-256-GCM** per frame and per audio chunk, key rotation, PulseCheck. The call app's cloud recording is not this file. |
+| \`veillock record\` / \`play\` | **AES-256-GCM at rest** for video+audio, video-only, and audio-only, including what was sent and what a peer decrypted. The key is not in the file. Playback is in memory. Plaintext export is off unless explicitly requested and leaves this protection. A screen recorder pointed at a playing screen is outside the file. |
 | Keys | Out of band: 32-byte pre-shared key, HMAC-wrapped broadcast key (the wrap is AES-GCM of the key, not of the pixels), or X25519 then HKDF-SHA256. The E2E media key uses the HKDF label veillock-e2e-media-v1. The scramble key is a different label and is not AES. |
 | Engulf | Linux, app opens /dev/video* itself: bwrap or LD_PRELOAD via veillock engulf. PipeWire, Windows, macOS (SIP, hardened runtime, Apple-signed FaceTime), and iOS: not engulfed. Chromium: the extension wraps getUserMedia. |
 | VeilLock link | **AES-256-GCM** on deflate-encoded frames over TCP between two VeilLock users. The call app still carries only the veil or the scramble. Both ends need VeilLock. A wrong key fails closed. |
@@ -294,9 +294,15 @@ export function wrapContract() {
       },
     },
     local_recording: {
-      kind: "AES-256-GCM per frame and per audio chunk",
+      kind: "AES-256-GCM at rest for video+audio, video-only, and audio-only",
       aes_256_gcm: true,
       key_rotation: true,
+      key_stored_in_file: false,
+      plaintext_file: false,
+      playback: "in memory inside veillock play, the loopback UI, and the extension player",
+      plaintext_export: "off unless the user passes --export and the key; that export leaves VeilLock protection",
+      screen_recorder: "another camera or a screen recorder pointed at a playing screen is outside the file",
+      covers: ["sent", "received", "cli", "loopback-ui", "engulf", "browser-extension"],
       pulsecheck: "failure halts; plaintext is not written",
       commands: ["veillock record", "veillock play"],
     },

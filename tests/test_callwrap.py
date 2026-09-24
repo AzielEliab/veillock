@@ -353,7 +353,7 @@ def test_cli_keygen_agree_record_play_receive(tmp_path: Path, capsys: pytest.Cap
     assert main(["record", "--in", str(npy), "--out", str(rec), "--key", psk, "--rotation-interval", "60"]) == 0
     assert "AES-256-GCM" in capsys.readouterr().out
     played = tmp_path / "back.npy"
-    assert main(["play", "--in", str(rec), "--out", str(played), "--key", psk]) == 0
+    assert main(["play", "--in", str(rec), "--export", "--out", str(played), "--key", psk]) == 0
     np.testing.assert_array_equal(np.load(played), frames)
     assert main(["play", "--in", str(rec), "--out", str(tmp_path / "bad.npy"), "--key", "11" * 32]) == 1
 
@@ -387,11 +387,11 @@ def test_cli_keygen_agree_record_play_receive(tmp_path: Path, capsys: pytest.Cap
     assert public.shape[0] == 2
     assert has_scramble_magic(public[0])
     out = tmp_path / "unveiled.npy"
-    assert main(["receive", "--in", str(preview), "--out", str(out), "--key", psk]) == 0
+    assert main(["receive", "--in", str(preview), "--export", "--out", str(out), "--key", psk]) == 0
     unveiled = np.load(out)
     np.testing.assert_array_equal(_body(unveiled[0]), _body(frames[0]))
     denied = tmp_path / "denied.npy"
-    assert main(["receive", "--in", str(preview), "--out", str(denied), "--key", "22" * 32]) == 0
+    assert main(["receive", "--in", str(preview), "--export", "--out", str(denied), "--key", "22" * 32]) == 0
     assert not np.array_equal(_body(np.load(denied)[0]), _body(frames[0]))
     _ = pub  # public half of the keygen pair; agree used the private half
     _ = other_priv

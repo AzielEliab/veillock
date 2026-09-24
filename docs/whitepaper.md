@@ -249,8 +249,15 @@ real microphone can be written into the AES-256-GCM recording while the
 call app receives only the public audio.
 
 `veillock record` / `veillock play` write a separate file sealed with
-the existing AES-256-GCM engine, key rotation, and PulseCheck. That
-file is encryption. The call app's recording is not that file.
+AES-256-GCM, key rotation, and PulseCheck. Video and audio, video only,
+and audio only all use that file, including a recording of the decrypted
+stream received from a peer. The key is not stored in the file. Each
+chunk is sealed and flushed before the next, so a crash leaves sealed
+chunks rather than plaintext. Playback decrypts in memory inside
+VeilLock. A plaintext export exists only when the user passes `--export`
+and the key, and that export leaves VeilLock's protection. Someone can
+still point another camera or a screen recorder at a playing screen.
+The call app's recording is not this file.
 
 PulseCheck failure produces veil or noise. It does not send plaintext
 and it does not write plaintext. The user controls the lift. iPhone FaceTime cannot select a third-party

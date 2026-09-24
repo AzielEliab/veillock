@@ -15,7 +15,7 @@
   <p><label><input id="lift" type="checkbox" /> Lift the veil and pass a VeilLock device when one exists</label></p>
   <p><label>Shared key (64 hex). Empty means encoded frames are not encrypted.<br /><input id="key" type="text" spellcheck="false" /></label></p>
   <button id="save" type="button">Save</button>
-  <p id="note">Both people need this extension to decrypt. A call server that decodes video will not see the picture. The scramble fallback is obfuscation, not AES-256-GCM. This extension does not run PulseCheck.</p>
+  <p id="note">Both people need this extension to decrypt. A call server that decodes video will not see the picture. The scramble fallback is obfuscation, not AES-256-GCM. This extension does not run PulseCheck. Recordings it keeps are AES-256-GCM chunks. Playback decrypts in memory. A screen recorder pointed at this browser can still see a playing picture.</p>
   <script src="popup.js"></script>
 </body>
 </html>

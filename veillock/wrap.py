@@ -29,7 +29,7 @@ from veillock.frames import FrameSource
 from veillock.honesty import CALL_AUDIO, CALL_VIDEO, CONSENT, LOCAL_RECORDING, PLATFORM, PULSE
 from veillock.modes import Mode
 from veillock.pulse import AlwaysPass, HaltedError, PhoenixError, PulseCheck
-from veillock.record import save_recording
+from veillock.record import ChunkVault
 from veillock.scramble import UnveilResult, public_epoch, unveil_frame
 from veillock.sources import DEFAULT_HEIGHT, DEFAULT_WIDTH, resize_rgb
 from veillock.tether import (
@@ -191,6 +191,7 @@ def run_wrap(
     mic_dev = pcm_sink
     sealed: list[EncryptedFrame] = []
     pcm_real: list[np.ndarray] = []
+    vault: ChunkVault | None = None
     labels: list[str] = []
     audio_labels: list[str] = []
     sent = 0
@@ -303,9 +304,27 @@ def run_wrap(
                         raise RuntimeError("pcm sink has no send() or write()")
                     pcm_send(public_pcm)
                 if produced is not None and produced.sealed is not None and cfg.record_path:
+                    if vault is None:
+                        vault = ChunkVault(
+                            str(cfg.record_path),
+                            root,
+                            rotation_interval=int(cfg.rotation_interval),
+                            pulse=pulse,
+                            sample_rate=16000,
+                        )
+                    vault.write_audio(mic)
                     pcm_real.append(mic)
 
             if produced is not None and produced.sealed is not None and cfg.record_path:
+                if vault is None:
+                    vault = ChunkVault(
+                        str(cfg.record_path),
+                        root,
+                        rotation_interval=int(cfg.rotation_interval),
+                        pulse=pulse,
+                        sample_rate=16000,
+                    )
+                vault.write_video(frame)
                 sealed.append(produced.sealed)
             sent += 1
     finally:
@@ -325,26 +344,11 @@ def run_wrap(
             close = getattr(source, "close", None)
             if close is not None:
                 close()
+        if vault is not None:
+            vault.close()
 
-    recorded = False
-    if cfg.record_path and sealed:
-        stream = EncryptedStream(
-            frames=sealed,
-            mode=mode.value,
-            rotation_interval=int(cfg.rotation_interval),
-            wrapped_key=session.wrapped_key,
-            decoy=None,
-        )
-        pcm = np.concatenate(pcm_real) if pcm_real else None
-        save_recording(
-            cfg.record_path,
-            stream,
-            session_key=root,
-            pcm=pcm,
-            sample_rate=int(cfg.sample_rate),
-            rotation_interval=int(cfg.rotation_interval),
-        )
-        recorded = True
+    recorded = bool(vault is not None and vault.wrote)
+    if recorded:
         out.write(f"record={cfg.record_path} crypto=AES-256-GCM frames={len(sealed)}\n")
     return WrapReport(
         frames_sent=sent,

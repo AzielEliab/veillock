@@ -30,10 +30,22 @@ CALL_AUDIO = (
 )
 
 LOCAL_RECORDING = (
-    "VeilLock's own recording is AES-256-GCM per video frame and per "
-    "audio chunk, with key rotation and PulseCheck. That file is "
-    "encryption. A call app or screen recorder only stores what left "
-    "the virtual camera and microphone: the veil or the scramble."
+    "Every VeilLock recording is AES-256-GCM at rest: video and audio, "
+    "video only, or audio only, whether it is what you sent or the "
+    "decrypted stream you received. The key is not in the file. Key "
+    "rotation and PulseCheck apply. A wrong key opens nothing. No "
+    "plaintext recording is written, including a temp file or a partial "
+    "file after a crash. Playback stays inside VeilLock and decrypts in "
+    "memory. Plaintext export is off unless you explicitly export and "
+    "supply the key; that export leaves VeilLock's protection. Someone "
+    "can still point another camera or a screen recorder at a playing "
+    "screen. A call app's own recording is not this file."
+)
+
+EXPORT_LEAVES = (
+    "This export is plaintext and leaves VeilLock's protection. "
+    "The .veilrec file stays encrypted. Someone can also point another "
+    "camera or a screen recorder at a playing screen."
 )
 
 PULSE = (

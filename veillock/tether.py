@@ -147,8 +147,17 @@ Android / iOS
 """
 
 from veillock.engulf import engulf_guide_text
+from veillock.honesty import EXPORT_LEAVES, LOCAL_RECORDING
 
-APPS_GUIDE = APPS_GUIDE + engulf_guide_text()
+APPS_GUIDE = (
+    APPS_GUIDE
+    + engulf_guide_text()
+    + "\nRecordings stay inside VeilLock\n------------------------------\n"
+    + LOCAL_RECORDING
+    + "\n"
+    + EXPORT_LEAVES
+    + "\n"
+)
 
 
 def _require_pyvirtualcam():
