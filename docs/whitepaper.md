@@ -255,11 +255,33 @@ file is encryption. The call app's recording is not that file.
 PulseCheck failure produces veil or noise. It does not send plaintext
 and it does not write plaintext. The user controls the lift. iPhone FaceTime cannot select a third-party
 camera. Most other phone clients cannot either.
-VeilLock does not inject into Skype, Zoom, Meet, Teams, Discord,
-WhatsApp, Signal, OBS, or the browser.
+VeilLock does not attach to a Skype, Zoom, Meet, Teams, Discord,
+WhatsApp, Signal, OBS, or browser process that is already running.
 
 Keys travel out of band (pre-shared, HMAC-wrapped broadcast key, or
-X25519). Lamb Lens order remains Service, then Clarity, then Peace.
+X25519). The encrypted-media label is `veillock-e2e-media-v1`. The
+scramble label is different. Lamb Lens order remains Service, then
+Clarity, then Peace.
+
+Engulf is not the same on every platform. On Linux, `veillock engulf`
+can start an app that opens `/dev/video*` itself inside a `bwrap` device
+namespace, or with an `LD_PRELOAD` that redirects those opens. PipeWire
+and portal cameras are outside that sandbox and are not engulfed. Windows
+is not engulfed: no capture hook and no signed virtual source are shipped.
+macOS is not engulfed: SIP and the hardened runtime block injection, and
+Apple-signed FaceTime cannot be injected into. iOS apps cannot be wrapped.
+Chromium pages are engulfed by the extension, which wraps `getUserMedia`
+and, when both people have the key, seals each encoded frame with
+AES-256-GCM. A relay that forwards those frames unchanged sees ciphertext.
+A server that decodes or transcodes does not recover the picture.
+
+`veillock link` is the native end-to-end path. It deflate-encodes the
+picture, then seals that bitstream with AES-256-GCM, and sends it on a
+TCP channel that is not the call. The call app still sends the veil or
+the scramble. Both ends need VeilLock. A wrong key fails closed.
+PulseCheck failure sends nothing. Until the user lifts the veil, the
+sealed picture is the veil. The scramble stays the obfuscation fallback
+for a peer without VeilLock.
 
 ## AZ-OS hook
 

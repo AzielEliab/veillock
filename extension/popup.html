@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>VeilLock</title>
+  <style>
+    body { font: 14px/1.4 sans-serif; width: 320px; margin: 12px; color: #1c2430; }
+    p { margin: 0 0 10px; }
+    input[type="text"] { width: 100%; box-sizing: border-box; }
+    button { margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <p>VeilLock wraps getUserMedia on this browser. The page gets a veil until you lift it. It does not receive the bare camera.</p>
+  <p><label><input id="lift" type="checkbox" /> Lift the veil and pass a VeilLock device when one exists</label></p>
+  <p><label>Shared key (64 hex). Empty means encoded frames are not encrypted.<br /><input id="key" type="text" spellcheck="false" /></label></p>
+  <button id="save" type="button">Save</button>
+  <p id="note">Both people need this extension to decrypt. A call server that decodes video will not see the picture. The scramble fallback is obfuscation, not AES-256-GCM. This extension does not run PulseCheck.</p>
+  <script src="popup.js"></script>
+</body>
+</html>

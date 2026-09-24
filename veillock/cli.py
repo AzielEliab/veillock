@@ -211,6 +211,24 @@ def _build_parser() -> argparse.ArgumentParser:
         help="When the veil is lifted, send a PCM scramble instead of the microphone.",
     )
 
+    p_engulf = sub.add_parser(
+        "engulf",
+        help="Start an app so a direct /dev/video open receives VeilLock. Refuses platforms that cannot be wrapped.",
+    )
+    p_engulf.add_argument("app", nargs=argparse.REMAINDER, help="Command to start, after --.")
+    p_engulf.add_argument("--video", default="/dev/video10", help="VeilLock V4L2 device to expose as the camera.")
+
+    p_link = sub.add_parser(
+        "link",
+        help="AES-256-GCM encoded frames between two VeilLock users. Not the call app's stream.",
+    )
+    p_link.add_argument("--listen", default=None, help="host:port to receive on.")
+    p_link.add_argument("--connect", default=None, help="host:port to send to.")
+    p_link.add_argument("--frames", default=None, help="RGB .npy to encode and send.")
+    p_link.add_argument("--out", default=None, help="Where to write decrypted RGB .npy.")
+    p_link.add_argument("--key", required=True, help="64-char hex E2E key.")
+    p_link.add_argument("--lifted", action="store_true", help="Seal the camera. Omit to seal a veil instead.")
+
     p_recv = sub.add_parser(
         "receive",
         help="Unveil a captured call stack with the out-of-band key. Not an AES decrypt.",
@@ -239,6 +257,11 @@ def _build_parser() -> argparse.ArgumentParser:
     p_agree = sub.add_parser("agree", help="Derive the call key from your X25519 private key and the peer public key.")
     p_agree.add_argument("--private", required=True, help="64-char hex X25519 private key.")
     p_agree.add_argument("--peer-public", dest="peer_public", required=True)
+    p_agree.add_argument(
+        "--e2e",
+        action="store_true",
+        help="Derive the VeilLock link key (AES-256-GCM media). Omit this for the scramble key, which is not AES.",
+    )
     p_azos = sub.add_parser("azos", help="Show the AZ-OS consent hook status.")
     p_azos.add_argument("--json", action="store_true", dest="as_json", help="Print hook status as JSON.")
     p_azos.add_argument(
@@ -384,16 +407,109 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.cmd == "agree":
-        from veillock.callkeys import agree_x25519
+        from veillock.callkeys import agree_e2e, agree_x25519
 
         try:
-            shared = agree_x25519(_parse_hex("private", args.private, 32), _parse_hex("peer-public", args.peer_public, 32))
+            private = _parse_hex("private", args.private, 32)
+            peer = _parse_hex("peer-public", args.peer_public, 32)
+            shared = agree_e2e(private, peer) if args.e2e else agree_x25519(private, peer)
         except ValueError as exc:
             sys.stderr.write(f"error: {exc}\n")
             return 2
         sys.stdout.write(f"session_key={shared.hex()}\n")
-        sys.stdout.write("Same 32 bytes on both peers. Call video that uses it is a scramble, not AES-256-GCM. A veillock record file that uses it is AES-256-GCM.\n")
+        if args.e2e:
+            sys.stdout.write(
+                "Same 32 bytes on both peers. This key is for veillock link and the browser "
+                "encoded frames: AES-256-GCM. It is not the scramble key. Both ends need VeilLock.\n"
+            )
+        else:
+            sys.stdout.write("Same 32 bytes on both peers. Call video that uses it is a scramble, not AES-256-GCM. A veillock record file that uses it is AES-256-GCM.\n")
         return 0
+
+    if args.cmd == "engulf":
+        from veillock.engulf import run_engulf
+
+        app = [part for part in (args.app or []) if part != "--"]
+        if not app:
+            sys.stderr.write("error: veillock engulf -- <app> [args]\n")
+            return 2
+        return run_engulf(app, video_device=str(args.video))
+
+    if args.cmd == "link":
+        from veillock.e2e import (
+            KIND_VIDEO,
+            EncodedChannel,
+            decode_picture,
+            encode_picture,
+            open_encoded,
+            recv_blobs,
+            send_blobs,
+        )
+        import socket
+
+        try:
+            key = _parse_hex("key", args.key, 32)
+        except ValueError as exc:
+            sys.stderr.write(f"error: {exc}\n")
+            return 2
+        if bool(args.listen) == bool(args.connect):
+            sys.stderr.write("error: pass exactly one of --listen or --connect\n")
+            return 2
+
+        def _hostport(text: str) -> tuple[str, int]:
+            host, _, port = str(text).rpartition(":")
+            if not host or not port.isdigit():
+                raise ValueError("address must be host:port")
+            return host, int(port)
+
+        try:
+            if args.connect:
+                if not args.frames:
+                    sys.stderr.write("error: --connect needs --frames\n")
+                    return 2
+                frames = _load_frames(args.frames)
+                channel = EncodedChannel(key)
+                blobs = []
+                for frame in frames:
+                    picture = frame if args.lifted else np.zeros_like(frame)
+                    blobs.append(channel.seal(encode_picture(picture), KIND_VIDEO))
+                host, port = _hostport(args.connect)
+                sock = socket.create_connection((host, port), timeout=10)
+                try:
+                    send_blobs(sock, blobs)
+                finally:
+                    sock.close()
+                sys.stdout.write(
+                    f"sent={len(blobs)} aes=AES-256-GCM lifted={bool(args.lifted)} "
+                    "observer_sees=ciphertext\n"
+                )
+                return 0
+            host, port = _hostport(args.listen)
+            if not args.out:
+                sys.stderr.write("error: --listen needs --out\n")
+                return 2
+            srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            srv.bind((host, port))
+            srv.listen(1)
+            sys.stdout.write(f"listening {host}:{port}\n")
+            sys.stdout.flush()
+            conn, _addr = srv.accept()
+            try:
+                blobs = recv_blobs(conn)
+            finally:
+                conn.close()
+                srv.close()
+            opened = []
+            for blob in blobs:
+                payload, _kind = open_encoded(blob, key)
+                opened.append(decode_picture(payload))
+            np.save(args.out, np.stack(opened, axis=0))
+            sys.stdout.write(f"frames={len(opened)} out={args.out} aes=AES-256-GCM\n")
+            return 0
+        except (OSError, ValueError, HaltedError, DecryptError) as exc:
+            sys.stderr.write(f"error: {exc}\n")
+            return 2
 
     if args.cmd == "receive":
         from veillock.wrap import receive_audio, receive_stack

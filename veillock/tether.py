@@ -146,6 +146,10 @@ Android / iOS
   Skype / Meet / Teams).
 """
 
+from veillock.engulf import engulf_guide_text
+
+APPS_GUIDE = APPS_GUIDE + engulf_guide_text()
+
 
 def _require_pyvirtualcam():
     try:

@@ -123,9 +123,9 @@ const IDENTITY = "consent-gated camera protection via AZ-OS";
 const IOS_FACETIME = "iOS FaceTime cannot pick a third-party camera.";
 const TETHER_NOTE = "Desktop tether stays local. Hosted /v1 is a consent receipt, not a virtual camera.";
 const AZOS_HOST = "https://azos-download-tracker.vibelock.workers.dev";
-const NO_INJECT = "VeilLock does not inject into FaceTime, Zoom, Meet, Teams, or Skype.";
+const NO_INJECT = "VeilLock does not attach to a running FaceTime, Zoom, Meet, Teams, or Skype process. macOS, Windows, and iOS are not engulfed.";
 const LIMITATION =
-  "THIS IS: a privacy veil on the user's own camera and video, plus local-app steps. THIS IS NOT: a VPN, Tor, anonymous relay, call interceptor, or FaceTime/Zoom/Meet/Teams/Skype inject. YOUR camera/screen only.";
+  "THIS IS: a privacy veil on the user's own camera and video, plus local-app steps. THIS IS NOT: a VPN, Tor, anonymous relay, or an attach to a running FaceTime/Zoom/Meet/Teams/Skype process. YOUR camera/screen only.";
 const DOI = "10.5281/zenodo.21431659";
 const DOI_URL = "https://doi.org/10.5281/zenodo.21431659";
 const ZENODO = "https://zenodo.org/records/21431659";
@@ -134,32 +134,32 @@ const GITHUB = "https://github.com/AzielEliab/veillock";
 const APP_GUIDES = {
   zoom: [
     "Use YOUR camera/screen on this device only.",
-    "VeilLock does not inject into Zoom.",
+    "VeilLock does not attach to a running Zoom process.",
     "Apply the local veil (virtual camera / screen overlay) from the local package if you want obfuscation.",
     "In Zoom desktop: Settings → Video → Camera → VeilLock.",
     "Hosted / in-process ops return a consent receipt and recipe, not pixels.",
   ],
   meet: [
     "Use YOUR camera/screen on this device only.",
-    "VeilLock does not inject into Google Meet.",
+    "VeilLock does not attach to a running Google Meet process. The Chromium extension wraps getUserMedia instead.",
     "Apply the local veil from the local package.",
     "In Meet (desktop browser): More → Settings → Video → Camera → VeilLock.",
   ],
   teams: [
     "Use YOUR camera/screen on this device only.",
-    "VeilLock does not inject into Microsoft Teams.",
+    "VeilLock does not attach to a running Microsoft Teams process.",
     "Apply the local veil from the local package.",
     "In Teams desktop: Settings → Devices → Camera → VeilLock.",
   ],
   facetime: [
     "iOS FaceTime cannot pick a third-party camera.",
-    "VeilLock does not inject into FaceTime.",
+    "VeilLock does not inject into FaceTime. Apple-signed FaceTime cannot be injected into.",
     "Use YOUR device camera/screen only.",
     "Mac FaceTime can choose Video → VeilLock after the local tether is running.",
   ],
   skype: [
     "Use YOUR camera/screen on this device only.",
-    "VeilLock does not inject into Skype.",
+    "VeilLock does not attach to a running Skype process.",
     "Apply the local veil from the local package.",
     "In Skype desktop: Settings → Audio & Video → Camera → VeilLock.",
   ],
@@ -201,14 +201,14 @@ const EXTRA_APP_GUIDES = {
     "An OBS recording of that source stores the veil or the scramble, not the local AES-256-GCM file.",
   ],
   webrtc: [
-    "Browser WebRTC (Meet, Discord, and other sites): site permission → Camera → VeilLock.",
-    "Microphone: a virtual device you installed, if you want veiled audio.",
-    "The provider sees the veil or the scramble. That path is not AES-256-GCM.",
+    "Browser WebRTC (Meet, Discord, and other sites): install the VeilLock Chromium extension. It wraps getUserMedia, so the page gets a veil by default instead of the real camera.",
+    "With a shared key on both browsers, encoded frames are AES-256-GCM. A relay that forwards them unchanged sees ciphertext. A server that decodes does not recover the picture. Both ends need the extension.",
+    "Without the extension, site permission → Camera → VeilLock. That path is the veil or the scramble, not AES-256-GCM.",
   ],
 };
 
 const PLATFORM_LIMITS =
-  "iPhone FaceTime cannot select a third-party camera or microphone. Most phone clients (Zoom, Meet, Teams, WhatsApp, Signal) cannot either. Use a desktop app. VeilLock does not inject into the call app. Linux: veillock wrap --mic creates a PipeWire or PulseAudio source named VeilLock Microphone via pactl (not a kernel driver). macOS: no CoreAudio plugin is shipped; if BlackHole is installed the app selects BlackHole 2ch. Windows: no audio driver is shipped; if VB-Audio Virtual Cable is installed the app selects CABLE Output and VeilLock writes to CABLE Input.";
+  "iPhone FaceTime cannot select a third-party camera or microphone. Most phone clients (Zoom, Meet, Teams, WhatsApp, Signal) cannot either. Use a desktop app. VeilLock does not attach to a call app that is already running. Linux: veillock wrap --mic creates a PipeWire or PulseAudio source named VeilLock Microphone via pactl (not a kernel driver). Linux engulf (bwrap or LD_PRELOAD) only starts a new process that opens /dev/video* itself; PipeWire is not engulfed. macOS: no CoreAudio plugin is shipped; SIP and the hardened runtime block injection, including Apple-signed FaceTime. If BlackHole is installed the app selects BlackHole 2ch. Windows: no audio driver is shipped and capture APIs are not hooked. If VB-Audio Virtual Cable is installed the app selects CABLE Output and VeilLock writes to CABLE Input.";
 
 const WRAP_SKILL_ADDENDUM = `
 
@@ -222,7 +222,10 @@ const WRAP_SKILL_ADDENDUM = `
 | Live call audio | Comfort-noise veil until the user lifts it, then the microphone, or a keyed PCM block permutation if scramble was chosen. **Not AES-256-GCM.** Opus and AAC do not carry sample ciphertext. A phase-rebuilding speech codec does not return the waveform. Short blocks can still contain speech fragments. |
 | Virtual microphone | Linux: VeilLock creates **VeilLock Microphone** with pactl (not a kernel driver). macOS: no CoreAudio plugin; the app selects **BlackHole 2ch** only if BlackHole is installed. Windows: no driver; the app selects **CABLE Output** only if VB-Audio Virtual Cable is installed, and VeilLock writes to CABLE Input. |
 | \`veillock record\` / \`play\` | **AES-256-GCM** per frame and per audio chunk, key rotation, PulseCheck. The call app's cloud recording is not this file. |
-| Keys | Out of band: 32-byte pre-shared key, HMAC-wrapped broadcast key (the wrap is AES-GCM of the key, not of the pixels), or X25519 then HKDF-SHA256. |
+| Keys | Out of band: 32-byte pre-shared key, HMAC-wrapped broadcast key (the wrap is AES-GCM of the key, not of the pixels), or X25519 then HKDF-SHA256. The E2E media key uses the HKDF label veillock-e2e-media-v1. The scramble key is a different label and is not AES. |
+| Engulf | Linux, app opens /dev/video* itself: bwrap or LD_PRELOAD via veillock engulf. PipeWire, Windows, macOS (SIP, hardened runtime, Apple-signed FaceTime), and iOS: not engulfed. Chromium: the extension wraps getUserMedia. |
+| VeilLock link | **AES-256-GCM** on deflate-encoded frames over TCP between two VeilLock users. The call app still carries only the veil or the scramble. Both ends need VeilLock. A wrong key fails closed. |
+| Browser encoded frames | **AES-256-GCM** on each encoded frame when both Chromium browsers run the extension and share the key. A forwarding relay sees ciphertext. A server that decodes or transcodes does not recover the picture. |
 
 PulseCheck failure halts to veil or noise. Plaintext is not sent. The veil stays on until you lift it. Hosted \`GET /v1/wrap\` describes this. It does not scramble pixels and it does not increment downloads.
 
@@ -242,6 +245,23 @@ export function wrapContract() {
     plaintext: false,
     increments_downloads: false,
     aes_on_call_path: false,
+    e2e: {
+      aes_256_gcm: true,
+      both_ends_need_veillock: true,
+      call_app_stream: "veil or keyed scramble; obfuscation, not AES-256-GCM",
+      link: "TCP between two VeilLock users; AES-256-GCM after a deflate encoder; not the call provider's connection",
+      browser: "Chromium extension seals the browser's encoded frames with AES-256-GCM. A relay that forwards those frames unchanged sees ciphertext. A server that decodes or transcodes does not recover the picture.",
+      scramble_fallback: "keyed visual scramble is obfuscation for a peer without VeilLock",
+      pulsecheck: "failure sends nothing on the link; never plaintext",
+      consent: "until the veil is lifted, the sealed picture is the veil, not the camera",
+    },
+    engulf: {
+      linux_v4l2: "bwrap fresh /dev with only the VeilLock node, or LD_PRELOAD of open(/dev/video*). PipeWire is not engulfed.",
+      windows: "not engulfed; no capture hook and no signed DirectShow or Media Foundation source",
+      macos: "not engulfed; SIP and the hardened runtime block injection; Apple-signed FaceTime cannot be injected into",
+      ios: "apps cannot be wrapped",
+      chromium: "extension wraps getUserMedia; default veil; encoded-frame AES-256-GCM only when both sides have the key",
+    },
     call_video: {
       kind: "keyed compression-tolerant scramble",
       aes_256_gcm: false,

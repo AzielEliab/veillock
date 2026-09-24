@@ -85,11 +85,14 @@ Paper: DOI https://doi.org/10.5281/zenodo.21431659 · https://zenodo.org/records
 | Live call audio | Comfort-noise veil until the user lifts it, then the microphone, or a keyed PCM block permutation if scramble was chosen. **Not AES-256-GCM.** Opus and AAC do not carry sample ciphertext. A phase-rebuilding speech codec does not return the waveform. Short blocks can still contain speech fragments. |
 | Virtual microphone | Linux: VeilLock creates **VeilLock Microphone** with pactl (not a kernel driver). macOS: no CoreAudio plugin; the app selects **BlackHole 2ch** only if BlackHole is installed. Windows: no driver; the app selects **CABLE Output** only if VB-Audio Virtual Cable is installed, and VeilLock writes to CABLE Input. |
 | `veillock record` / `play` | **AES-256-GCM** per frame and per audio chunk, key rotation, PulseCheck. The call app's cloud recording is not this file. |
-| Keys | Out of band: 32-byte pre-shared key, HMAC-wrapped broadcast key (the wrap is AES-GCM of the key, not of the pixels), or X25519 then HKDF-SHA256. |
+| Keys | Out of band: 32-byte pre-shared key, HMAC-wrapped broadcast key (the wrap is AES-GCM of the key, not of the pixels), or X25519 then HKDF-SHA256. The E2E label is `veillock-e2e-media-v1`. The scramble label is different and is not AES. |
+| Engulf | Linux apps that open `/dev/video*` themselves: `bwrap` or `LD_PRELOAD`. PipeWire, Windows, macOS (SIP, hardened runtime, Apple-signed FaceTime), and iOS are not engulfed. Chromium: the extension wraps `getUserMedia`. |
+| `veillock link` | **AES-256-GCM** on deflate-encoded frames over TCP between two VeilLock users. The call app still carries the veil or the scramble. Both ends need VeilLock. A wrong key fails closed. |
+| Browser encoded frames | **AES-256-GCM** when both Chromium browsers run the extension and share the key. A forwarding relay sees ciphertext. A server that decodes or transcodes does not recover the picture. |
 
 PulseCheck failure halts to veil or noise. Plaintext is not sent. The veil stays on until the user lifts it.
 
-iPhone FaceTime cannot select a third-party camera or microphone. Most mobile clients (Zoom, Meet, Teams, WhatsApp, Signal) cannot either. VeilLock does not inject into the call app.
+iPhone FaceTime cannot select a third-party camera or microphone. Most mobile clients (Zoom, Meet, Teams, WhatsApp, Signal) cannot either. VeilLock does not attach to a call app that is already running.
 
 Lamb Lens order: Service, then Clarity, then Peace. Identity is Aziel Eliab only. Forks are welcome and always allowed.
 

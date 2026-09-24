@@ -25,6 +25,7 @@ from veillock.crypto import unwrap_session_key, wrap_session_key
 
 HKDF_SALT = b"veillock-x25519-v1"
 HKDF_INFO = b"call-scramble-root"
+E2E_HKDF_INFO = b"veillock-e2e-media-v1"
 
 
 def random_psk() -> bytes:
@@ -47,8 +48,8 @@ def generate_x25519() -> tuple[bytes, bytes]:
     return priv_b, pub_b
 
 
-def agree_x25519(private_key: bytes, peer_public: bytes) -> bytes:
-    """Derive the 32-byte call key. Both peers get the same bytes."""
+def agree_x25519(private_key: bytes, peer_public: bytes, info: bytes = HKDF_INFO) -> bytes:
+    """Derive a 32-byte key. The default label is the scramble, not the E2E channel."""
     if len(private_key) != 32 or len(peer_public) != 32:
         raise ValueError("X25519 keys must be 32 bytes")
     priv = X25519PrivateKey.from_private_bytes(bytes(private_key))
@@ -58,8 +59,13 @@ def agree_x25519(private_key: bytes, peer_public: bytes) -> bytes:
         algorithm=hashes.SHA256(),
         length=32,
         salt=HKDF_SALT,
-        info=HKDF_INFO,
+        info=bytes(info),
     ).derive(shared)
+
+
+def agree_e2e(private_key: bytes, peer_public: bytes) -> bytes:
+    """X25519 then HKDF-SHA256 with the E2E label. This key is for AES-256-GCM media."""
+    return agree_x25519(private_key, peer_public, info=E2E_HKDF_INFO)
 
 
 def wrap_call_key(call_key: bytes, receiver_secret: bytes) -> bytes:

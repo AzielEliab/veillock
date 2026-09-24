@@ -51,7 +51,7 @@ PLATFORM = (
     "iPhone FaceTime cannot select a third-party camera or microphone. "
     "Most phone clients (Zoom, Meet, Teams, WhatsApp, Signal) cannot "
     "either. Use a desktop app that lets you pick the camera and "
-    "microphone. VeilLock does not inject into the call app. "
+    "microphone. VeilLock does not attach to a call app that is already running. "
     "Linux: veillock wrap --mic creates a PipeWire or PulseAudio source. "
     "The app selects VeilLock Microphone. That needs pactl and paplay. "
     "It is not a kernel driver. "
@@ -66,6 +66,28 @@ SCREEN_SHARE = (
     "If you screen-share a window that already shows unveiled video, "
     "that share is the picture on the screen. Wrap covers the camera "
     "and microphone the call app captures."
+)
+
+E2E = (
+    "Two VeilLock users can seal encoded frames with AES-256-GCM. "
+    "veillock link does that on a separate TCP channel after a deflate encoder. "
+    "The Chromium extension does it to the browser's already-encoded frames. "
+    "Both ends need VeilLock and the key. A wrong key fails closed. "
+    "PulseCheck failure sends nothing on the link. Until you lift the veil, "
+    "the sealed picture is the veil, not the camera. A relay that forwards "
+    "those bytes sees ciphertext. A call server that decodes or transcodes "
+    "does not recover the picture. The call app's own stream is still the "
+    "veil or the scramble, which is not AES-256-GCM."
+)
+
+ENGULF = (
+    "Linux can engulf an app that opens /dev/video* itself, with bwrap or "
+    "LD_PRELOAD, and only when you launch it via veillock engulf. PipeWire "
+    "and portal cameras are not engulfed. Windows is not engulfed: no capture "
+    "hook and no signed virtual source are shipped. macOS is not engulfed: "
+    "SIP and the hardened runtime block injection, and Apple-signed FaceTime "
+    "cannot be injected into. iOS apps cannot be wrapped. Chromium pages are "
+    "engulfed by the browser extension, which wraps getUserMedia."
 )
 
 LAMBS = "Lamb Lens order: Service, then Clarity, then Peace."

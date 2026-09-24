@@ -14,7 +14,7 @@ import numpy as np
 
 from veillock import __version__
 from veillock.engine import VeilLockSession
-from veillock.honesty import CALL_AUDIO, CALL_VIDEO, LOCAL_RECORDING, PLATFORM, PULSE
+from veillock.honesty import CALL_AUDIO, CALL_VIDEO, E2E, ENGULF, LOCAL_RECORDING, PLATFORM, PULSE
 from veillock.modes import Mode
 from veillock.tether import APPS_GUIDE, RUNTIME, TetherConfig
 
@@ -160,6 +160,14 @@ PAGE = r"""<!DOCTYPE html>
     </div>
     <p class="cap" id="wrap-metrics"></p>
     <p class="key" id="wrap-key" hidden></p>
+  </section>
+  <section class="card" id="e2e">
+    <h2>Encrypted link</h2>
+    <p class="help">This seals one synthetic encoded frame with AES-256-GCM and shows what a relay would see. The call app is not this channel. The scramble remains obfuscation for someone without VeilLock.</p>
+    <p style="margin-top:0.95rem">
+      <button class="primary" id="e2e-demo" type="button">Seal an encoded frame</button>
+    </p>
+    <p class="help" id="e2e-status">Idle. Both ends need the key. A wrong key fails closed.</p>
   </section>
   <p class="err" id="err" hidden></p>
   <footer>VeilLock __VERSION__ · AZ-OS hook · you control the veil · Apache-2.0 · <code>veillock ui</code></footer>
@@ -329,6 +337,18 @@ PAGE = r"""<!DOCTYPE html>
     }
   };
   refreshMic();
+  $("e2e-demo").onclick = async () => {
+    $("err").hidden = true;
+    try {
+      const res = await fetch("/api/e2e/demo", {method: "POST", headers: {"Content-Type": "application/json"}, body: "{}"});
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+      $("e2e-status").textContent = data.note;
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    }
+  };
   $("wrap-preview").onclick = async () => {
     $("err").hidden = true;
     $("wrap-preview").disabled = true;
@@ -390,7 +410,7 @@ PAGE = r"""<!DOCTYPE html>
 PAGE = PAGE.replace("__APPS__", APPS_GUIDE)
 PAGE = PAGE.replace(
     "__HONESTY__",
-    " ".join([CALL_VIDEO, CALL_AUDIO, LOCAL_RECORDING, PULSE, PLATFORM]),
+    " ".join([CALL_VIDEO, CALL_AUDIO, LOCAL_RECORDING, PULSE, PLATFORM, E2E, ENGULF]),
 )
 
 
@@ -516,6 +536,9 @@ class Handler(BaseHTTPRequestHandler):
 
             self._json(200, MIC_RUNTIME.stop())
             return
+        if path == "/api/e2e/demo":
+            self._e2e_demo()
+            return
         if path == "/api/wrap/preview":
             self._wrap_preview()
             return
@@ -586,6 +609,39 @@ class Handler(BaseHTTPRequestHandler):
             )
         except Exception as exc:  # noqa: BLE001
             self._json(400, {"error": str(exc)})
+
+    def _e2e_demo(self) -> None:
+        from veillock.crypto import DecryptError
+        from veillock.e2e import exchange_over_relay
+
+        try:
+            camera = b"camera-encoded-frame"
+            veil = b"veil-encoded-frame"
+            key = bytes(range(32))
+            opened, relay = exchange_over_relay([camera], key, veil=veil, lifted=False, pulse_ok=True)
+            leaked = relay.saw_plaintext(camera) or relay.saw_plaintext(veil)
+            wrong = False
+            try:
+                exchange_over_relay([camera], key, veil=veil, lifted=True, peer_key=bytes([9] * 32))
+            except DecryptError:
+                wrong = True
+            self._json(
+                200,
+                {
+                    "ok": True,
+                    "aes_256_gcm": True,
+                    "relay_saw_plaintext": leaked,
+                    "peer_got": opened[0].decode("ascii"),
+                    "wrong_key_closed": wrong,
+                    "note": (
+                        "Relay saw ciphertext only. With the veil still on, the peer decrypted the veil, "
+                        "not the camera. A wrong key failed closed. This is AES-256-GCM on the VeilLock "
+                        "link, not on the call app. The scramble is still obfuscation."
+                    ),
+                },
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._json(400, {"ok": False, "error": str(exc)})
 
     def _wrap_preview(self) -> None:
         from veillock.codecsim import jpeg_like
