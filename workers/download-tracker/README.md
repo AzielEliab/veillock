@@ -95,10 +95,12 @@ number). `/v1` does not increment either.
 
 All responses include `Access-Control-Allow-Origin: *`.
 
-The homepage is the live VeilLock desk: consent (veil on / lifted), PulseCheck,
-veil compose, and honest call-app steps. Counted `/download` and one-click
-install stay on the same page. Title is `VeilLock — Aziel Eliab`. `/v1` does
-not increment downloads.
+The homepage opens with the name, a one-line description, and a primary
+Download button for `veillock-0.2.0.tar.gz`. Dark and light follow
+`prefers-color-scheme`. The same page keeps the live desk: consent (veil on /
+lifted), PulseCheck, veil compose, and call-app steps, plus Live Nodes and the
+branch/fork counts. Title is `VeilLock — Aziel Eliab`. `/v1` does not increment
+downloads.
 
 ## Use with AI assistants
 

@@ -22,3 +22,13 @@ def test_public_brandmark_alt_empty_keeps_non_ui_everblooming() -> None:
     assert "everblooming" not in html.lower()
     assert "stamp" not in html.lower()
     assert "Aziel Eliab only" in html
+    assert 'id="downloadBtn"' in html
+    assert 'const DEFAULT_ASSET = "veillock-0.2.0.tar.gz"' in HOMEPAGE
+    assert 'href="/download?asset=${DEFAULT_ASSET}"' in html
+    assert ">Download</a>" in html
+    assert ":focus-visible" in html
+    assert "prefers-color-scheme: light" in html
+    assert "prefers-color-scheme: dark" in html
+    assert 'id="install-btn"' in html
+    assert 'id="veil-canvas"' in html
+    assert 'id="meshStrip"' in html

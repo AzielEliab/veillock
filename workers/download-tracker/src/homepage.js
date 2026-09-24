@@ -76,163 +76,298 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
 <style>
   :root {
     color-scheme: dark;
-    --bg: #080806;
-    --card: #12110c;
-    --ink: #f4ecd4;
-    --muted: #9a9074;
-    --line: #3a3420;
-    --gold: #d4af37;
-    --gold-deep: #c9a227;
-    --veil: #f0d78c;
-    --ok: #7dcf9a;
-    --halt: #e07a7a;
+    --bg: #14110d;
+    --ink: #f6efe4;
+    --muted: #c4b49a;
+    --gold: #e7c56a;
+    --on-gold: #1a1408;
+    --panel: #1e1a15;
+    --line: #8a7860;
+    --focus: #f2d48a;
+    --ok: #9ee0b8;
+    --on-ok: #102117;
+    --halt: #ffb4b0;
+    --btn: #f4ecdf;
+    --btn-ink: #1a1408;
+    --field: #120f0c;
+    --note-bg: #2a2218;
+    --note-ink: #f6e7c8;
+    --shadow: 0 18px 48px #00000066;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { color-scheme: dark; }
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      color-scheme: light;
+      --bg: #fbf7f1;
+      --ink: #1c1610;
+      --muted: #5c5146;
+      --gold: #7a5a10;
+      --on-gold: #fffaf0;
+      --panel: #ffffff;
+      --line: #7d7268;
+      --focus: #6b4e08;
+      --ok: #0f6b3c;
+      --on-ok: #fbf7f1;
+      --halt: #9d1c1c;
+      --btn: #1c1610;
+      --btn-ink: #fbf7f1;
+      --field: #ffffff;
+      --note-bg: #f3ead6;
+      --note-ink: #3d3118;
+      --shadow: 0 16px 40px #1c161014;
+    }
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; background: var(--bg); color: var(--ink);
-    font: 16px/1.5 "Iowan Old Style", Palatino, Georgia, "Times New Roman", serif; }
-  body { min-height: 100vh; }
-  main { max-width: 58rem; margin: 0 auto; padding: 2.2rem 1.2rem 4.5rem; }
-  .brandrow { display: flex; align-items: center; gap: 14px; margin: 0 0 0.85rem; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  html { overflow-x: clip; }
+  body {
+    min-height: 100vh;
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow-x: clip;
+  }
+  img { max-width: 100%; }
+  a { color: var(--gold); }
+  a:hover { text-decoration-thickness: 2px; }
+  :focus { outline: none; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+  .skip {
+    position: absolute; left: 0.75rem; top: 0.75rem; transform: translateY(-160%);
+    background: var(--btn); color: var(--btn-ink); padding: 0.65rem 0.9rem;
+    border-radius: 10px; z-index: 5; text-decoration: none; font-weight: 750;
+  }
+  .skip:focus, .skip:focus-visible { transform: none; }
+  main { max-width: 58rem; margin: 0 auto; padding: 1.15rem 1rem 3rem; min-width: 0; }
+  .hero, .hero-grid, .hero-grid > * { min-width: 0; }
+  .hero-grid { display: grid; gap: 1.25rem; align-items: start; }
+  .brandrow { display: flex; align-items: center; gap: 0.75rem; margin: 0 0 0.85rem; }
   .brandmark {
     width: 52px; height: 52px; border-radius: 12px; object-fit: cover; flex: 0 0 auto;
-    animation: bloom 7s ease-in-out infinite;
+    box-shadow: 0 0 0 1px #d4af3755;
   }
-  @keyframes bloom {
-    0%, 100% { box-shadow: 0 0 0 1px #d4af3733, 0 0 10px #d4af3728; }
-    50% { box-shadow: 0 0 0 1px #d4af3777, 0 0 26px #d4af3755; }
+  .eyebrow { margin: 0; font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: clamp(2.15rem, 6vw, 2.75rem); font-weight: 700; letter-spacing: -0.03em; margin: 0.1rem 0 0.35rem; line-height: 1.05; }
+  .motto { color: var(--gold); font-style: italic; margin: 0 0 0.45rem; font-size: 1.12rem; }
+  .lede { color: var(--muted); margin: 0 0 1rem; max-width: 38rem; }
+  .hero-actions { display: flex; flex-direction: column; gap: 0.55rem; margin: 0 0 0.7rem; max-width: 40rem; }
+  button, a.btn {
+    font: inherit; cursor: pointer; border-radius: 12px; min-height: 44px;
+    text-decoration: none; text-align: center;
   }
-  .eyebrow { margin: 0; font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); }
-  h1 { font-size: 2.05rem; font-weight: 500; letter-spacing: 0.03em; margin: 0.15rem 0 0.25rem; }
-  .motto { color: var(--muted); font-style: italic; margin: 0; }
-  .banner {
-    border: 1px solid #5c4a1a; background: #1a1508; color: var(--veil);
-    padding: 0.9rem 1.05rem; border-radius: 10px; margin: 1.15rem 0 1.25rem; font-size: 0.94rem;
+  a.btn.primary {
+    display: flex; align-items: center; justify-content: center; width: 100%;
+    background: var(--btn); color: var(--btn-ink); border: 0;
+    font-size: 1.25rem; font-weight: 760; padding: 1.05rem 1.2rem; min-height: 3.5rem;
+    box-shadow: var(--shadow); letter-spacing: 0.01em;
   }
-  .statusbar {
-    display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 0 0 1.15rem;
+  a.btn.primary:hover { filter: brightness(1.06); }
+  button.ghost, button.btn.ghost {
+    background: transparent; color: var(--ink); border: 1px solid var(--line);
+    padding: 0.7rem 1rem; font-weight: 650; width: 100%;
   }
+  button.gold { background: var(--gold); color: var(--on-gold); border: 0; padding: 0.7rem 1rem; font-weight: 700; }
+  button.copied { background: var(--ok); color: var(--on-ok); border-color: transparent; }
+  button:disabled { opacity: 0.55; cursor: wait; }
+  .os, .asset-note, .next { color: var(--muted); margin: 0 0 0.45rem; font-size: 0.95rem; }
+  .limit {
+    color: var(--note-ink); background: var(--note-bg); border: 1px solid var(--line);
+    border-radius: 12px; padding: 0.75rem 0.9rem; margin: 0.85rem 0 0; font-size: 0.95rem;
+  }
+  .features { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: 0.65rem; }
+  .features li { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 0.85rem 0.95rem; }
+  .features h2 { font-size: 1rem; margin: 0 0 0.2rem; color: var(--ink); letter-spacing: 0; text-transform: none; }
+  .features p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 1rem 0 0; }
+  nav.toc a {
+    text-decoration: none; color: var(--ink); border: 1px solid var(--line);
+    background: var(--panel); border-radius: 999px; padding: 0.45rem 0.8rem;
+    min-height: 44px; display: inline-flex; align-items: center; font-size: 0.92rem;
+  }
+  .markplate {
+    margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+    padding: 1rem 1rem 0.9rem; box-shadow: var(--shadow);
+  }
+  .stage-top { display: flex; align-items: center; gap: 0.55rem; font-weight: 700; margin: 0 0 0.35rem; }
+  .stage-top img { width: 28px; height: 28px; border-radius: 8px; box-shadow: 0 0 0 1px #d4af3755; }
+  .markplate ol { list-style: none; padding: 0; margin: 0.2rem 0 0.55rem; }
+  .markplate li { display: flex; gap: 0.65rem; align-items: flex-start; margin: 0.5rem 0; }
+  .markplate li b {
+    flex: 0 0 auto; width: 1.7rem; height: 1.7rem; border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--btn); color: var(--btn-ink); font-size: 0.78rem;
+  }
+  .markplate figcaption { color: var(--muted); font-size: 0.9rem; margin: 0; }
+  .statusbar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1.35rem 0 0.9rem; }
   .chip {
-    border: 1px solid var(--line); border-radius: 999px; padding: 0.22rem 0.7rem;
-    font-size: 0.78rem; color: var(--muted); background: #0d0c09;
+    border: 1px solid var(--line); border-radius: 999px; padding: 0.28rem 0.7rem;
+    font-size: 0.82rem; color: var(--muted); background: var(--panel);
   }
-  .chip.live { color: var(--ok); border-color: #2d5a3d; }
-  .chip.warn { color: var(--veil); border-color: #5c4a1a; }
-  .desk {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin: 0 0 0.9rem;
-  }
-  @media (max-width: 760px) { .desk { grid-template-columns: 1fr; } }
+  .chip.live { color: var(--ok); border-color: var(--ok); }
+  .chip.warn { color: var(--gold); border-color: var(--gold); }
+  .desk { display: grid; grid-template-columns: 1fr; gap: 0.85rem; margin: 0 0 0.85rem; }
   .card {
-    border: 1px solid var(--line); border-radius: 14px; padding: 1.15rem 1.2rem 1.25rem;
-    background: var(--card);
+    border: 1px solid var(--line); border-radius: 16px; padding: 1.05rem 1rem 1.15rem;
+    background: var(--panel); min-width: 0;
   }
-  .card.wide { grid-column: 1 / -1; }
-  h2 { font-size: 1.08rem; font-weight: 600; margin: 0 0 0.45rem; color: var(--gold); }
-  p.help { color: var(--muted); font-size: 0.92rem; margin: 0 0 0.85rem; }
+  h2 { font-size: 1.2rem; font-weight: 650; letter-spacing: -0.02em; margin: 0 0 0.45rem; color: var(--ink); }
+  p.help { color: var(--muted); font-size: 0.95rem; margin: 0 0 0.85rem; }
   .veil-lamp {
     display: flex; align-items: center; justify-content: space-between; gap: 0.8rem;
-    border: 1px solid var(--line); border-radius: 10px; padding: 0.85rem 1rem;
-    background: #0c0b08; margin: 0 0 0.9rem;
+    border: 1px solid var(--line); border-radius: 12px; padding: 0.85rem 1rem;
+    background: var(--field); margin: 0 0 0.9rem;
   }
-  .veil-lamp strong { display: block; font-size: 1.35rem; letter-spacing: 0.04em; }
-  .veil-lamp span { color: var(--muted); font-size: 0.88rem; }
+  .veil-lamp strong { display: block; font-size: 1.25rem; letter-spacing: 0.01em; }
+  .veil-lamp span { color: var(--muted); font-size: 0.9rem; }
   .veil-lamp.on strong { color: var(--gold); }
   .veil-lamp.lifted strong { color: var(--ok); }
-  label { display: block; font-size: 0.8rem; color: var(--muted); margin: 0.55rem 0 0.28rem; }
-  label.inline { display: flex; align-items: center; gap: 0.5rem; color: var(--ink); margin: 0.65rem 0; }
+  label { display: block; font-size: 0.85rem; color: var(--muted); margin: 0.55rem 0 0.28rem; }
+  label.inline { display: flex; align-items: center; gap: 0.55rem; color: var(--ink); margin: 0.65rem 0; min-height: 44px; }
   input[type="text"], select {
-    width: 100%; background: #0c0b08; color: var(--ink); border: 1px solid var(--line);
-    padding: 0.48rem 0.6rem; border-radius: 8px; font: inherit;
+    width: 100%; max-width: 100%; background: var(--field); color: var(--ink); border: 1px solid var(--line);
+    padding: 0.6rem 0.7rem; border-radius: 10px; font: inherit; min-height: 44px;
   }
+  ::placeholder { color: var(--muted); opacity: 1; }
   .row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
-  button, a.btn {
-    font-family: inherit; cursor: pointer; border: 0; border-radius: 9px;
-    padding: 0.62rem 1.05rem; font-weight: 700; text-decoration: none; display: inline-block;
-    text-align: center;
-  }
-  button.gold, a.btn.gold { background: var(--gold-deep); color: #14110a; }
-  button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
-  button:disabled { opacity: 0.5; cursor: wait; }
+  .row button { flex: 1 1 12rem; }
   .result {
-    margin-top: 0.85rem; border: 1px dashed var(--line); border-radius: 10px;
-    padding: 0.8rem 0.9rem; background: #0c0b08; min-height: 4.2rem;
+    margin-top: 0.85rem; border: 1px dashed var(--line); border-radius: 12px;
+    padding: 0.8rem 0.9rem; background: var(--field); min-height: 4.2rem; overflow-wrap: anywhere;
   }
-  .result h3 { margin: 0 0 0.25rem; font-size: 1.02rem; font-weight: 600; }
-  .result p { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.92rem; }
+  .result h3 { margin: 0 0 0.25rem; font-size: 1.02rem; font-weight: 650; }
+  .result p { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.95rem; }
   .result.pass h3 { color: var(--ok); }
   .result.fail h3 { color: var(--halt); }
-  .apps { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.7rem; }
-  .apps button[aria-pressed="true"] { background: var(--gold-deep); color: #14110a; border-color: var(--gold-deep); }
+  .apps { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0 0 0.7rem; }
+  .apps button { width: auto; padding: 0.45rem 0.85rem; }
+  .apps button[aria-pressed="true"] { background: var(--gold); color: var(--on-gold); border-color: var(--gold); }
   .steps { margin: 0; padding-left: 1.15rem; color: var(--ink); }
   .steps li { margin: 0.28rem 0; }
   canvas.preview {
-    width: 100%; max-width: 36rem; height: auto; aspect-ratio: 16 / 9;
+    width: 100%; max-width: 100%; height: auto; aspect-ratio: 16 / 9;
     background: #000; border: 1px solid var(--line); border-radius: 8px;
     image-rendering: pixelated; display: block;
   }
   .nums { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin: 0 0 1rem; }
-  .count { font-size: 2.15rem; font-variant-numeric: tabular-nums; font-weight: 700; margin: 0; }
+  .count { font-size: 2rem; font-variant-numeric: tabular-nums; font-weight: 700; margin: 0; }
   .count span { display: block; font-size: 0.92rem; font-weight: 500; color: var(--muted); }
-  .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin: 0 0 0.85rem; }
-  @media (max-width: 520px) { .btns { grid-template-columns: 1fr; } }
-  a.btn.primary, button.btn.install {
-    display: block; width: 100%; box-sizing: border-box; font-size: 1.15rem; padding: 1rem 1.1rem;
+  pre, code { font-family: ui-monospace, Menlo, Consolas, monospace; }
+  pre {
+    background: var(--field); color: var(--ink); padding: 0.75rem 0.85rem; border-radius: 12px;
+    font-size: 0.8rem; border: 1px solid var(--line); margin: 0.15rem 0 0.55rem;
+    max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere;
   }
-  a.btn.primary { background: var(--ink); color: #0e1014; }
-  button.btn.install { background: var(--gold-deep); color: #14110a; }
-  button.btn.install.copied { background: var(--ok); color: #0e1014; }
-  pre { background: #0c0b08; padding: 0.75rem 0.9rem; overflow: auto; border-radius: 8px; font-size: 0.82rem; border: 1px solid var(--line); }
-  .meta { margin-top: 1rem; color: var(--muted); font-size: 0.92rem; }
-  .meta a, .cite a { color: #e6d48a; }
-  .iso { margin-top: 0.75rem; font-size: 0.84rem; color: #7a7258; }
-  .cite { margin-top: 1.3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
-  .cite h2 { font-size: 1.05rem; }
-  footer { margin-top: 1.6rem; color: #6d6584; font-size: 0.8rem; }
-  ul.break { color: var(--muted); font-size: 0.9rem; }
-  #meshStrip { border: 1px solid var(--gold); border-radius: 12px; padding: .85rem 1rem; background: #12110c; margin: 0 0 1.2rem; display: flex; flex-wrap: wrap; align-items: center; gap: .7rem 1rem; font-size: .88rem; color: var(--muted); }
-  #meshStrip .live { color: var(--ink); }
-  #meshStrip .live b { color: var(--gold); font-size: 1.35rem; margin-right: .35rem; }
+  code { font-size: 0.92em; overflow-wrap: anywhere; }
+  .meta { margin-top: 0.85rem; color: var(--muted); font-size: 0.95rem; }
+  .iso { margin-top: 0.75rem; font-size: 0.92rem; color: var(--muted); }
+  .cite { margin-top: 1.25rem; }
+  footer { margin-top: 1.6rem; color: var(--muted); font-size: 0.92rem; }
+  footer p { margin: 0.3rem 0; }
+  footer a { color: var(--ink); }
+  ul.break { color: var(--muted); font-size: 0.95rem; padding-left: 1.15rem; }
+  ul.break li { margin: 0.25rem 0; overflow-wrap: anywhere; }
+  #meshStrip {
+    border: 1px solid var(--line); border-radius: 16px; padding: 0.9rem 1rem;
+    background: var(--panel); margin: 0.4rem 0 1rem; display: flex; flex-wrap: wrap;
+    align-items: center; gap: 0.65rem 0.9rem; font-size: 0.92rem; color: var(--muted);
+    max-width: 100%;
+  }
+  #meshStrip .live { color: var(--ink); border: 0; background: transparent; padding: 0; margin: 0; }
+  #meshStrip .live b { color: var(--gold); font-size: 1.35rem; margin-right: 0.3rem; }
   #meshStrip .rollup b { color: var(--gold); }
-  #meshStrip button { font: 700 .78rem/1 ui-monospace, Menlo, Consolas, monospace; height: 2rem; padding: 0 .75rem; border-radius: 8px; background: #0c0b08; color: var(--ink); border: 1px solid var(--gold); cursor: pointer; }
-  #meshStrip button:hover { background: #241c0d; color: var(--gold); }
-  #meshStrip input { width: 10rem; padding: .4rem .55rem; border: 1px solid var(--gold); border-radius: 8px; background: #0c0b08; color: var(--ink); font: inherit; }
-  #meshProducts { flex-basis: 100%; margin: 0; }
+  #meshStrip button {
+    font: 650 0.85rem/1 system-ui, sans-serif; min-height: 44px; height: auto;
+    padding: 0.4rem 0.75rem; width: auto; background: transparent; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
+  }
+  #meshStrip input {
+    width: min(100%, 16rem); max-width: 100%; min-height: 44px; padding: 0.5rem 0.6rem;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: inherit;
+  }
+  .mesh-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; max-width: 100%; }
+  #meshProducts { flex-basis: 100%; margin: 0; overflow-wrap: anywhere; }
+  @media (min-width: 720px) {
+    main { padding: 2rem 1.5rem 4rem; }
+    .features { grid-template-columns: 1fr 1fr; }
+    .desk { grid-template-columns: 1fr 1fr; }
+    .card.wide { grid-column: 1 / -1; }
+  }
+  @media (min-width: 900px) {
+    .hero-grid { grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 0.85fr); gap: 1.6rem; align-items: center; }
+  }
 </style>
 </head>
 <body>
+<a class="skip" href="#desk">Skip to the desk</a>
 <main>
-  <header>
-    <div class="brandrow">
-      <img class="brandmark" src="/sigil.png" width="52" height="52" alt="" decoding="async">
+  <header class="hero">
+    <div class="hero-grid">
       <div>
-        <p class="eyebrow">Aziel Eliab · Apache-2.0</p>
-        <h1>VeilLock</h1>
+        <div class="brandrow">
+          <img class="brandmark" src="/sigil.png" width="52" height="52" alt="" decoding="async">
+          <div>
+            <p class="eyebrow">Aziel Eliab · Apache-2.0</p>
+            <h1>VeilLock</h1>
+          </div>
+        </div>
         <p class="motto">Consent-gated camera protection via AZ-OS.</p>
+        <p class="lede">Your camera and video stay veiled until you turn obfuscation off or accept a call through AZ-OS. You control the lift.</p>
+        <div class="hero-actions">
+          <a class="btn primary" id="downloadBtn" href="/download?asset=${DEFAULT_ASSET}">Download</a>
+          <button type="button" class="btn ghost" id="install-btn">One-click install</button>
+        </div>
+        <p class="os" id="os-line">One Python package for macOS, Linux, and Windows.</p>
+        <pre id="install-cmd">${INSTALL_LINE}</pre>
+        <p class="asset-note">${n} downloads · ${DEFAULT_ASSET} · counted on this Worker for every branch and fork</p>
+        <p class="next">Then run <code>veillock ui</code> and open http://127.0.0.1:8761 on this computer.</p>
+        <p class="limit" role="note"><strong>Honest limit.</strong> Call apps stay as they are. On a desktop, you choose the camera named VeilLock when the app offers that choice. iOS FaceTime cannot pick a third-party camera. This page writes a consent receipt and a veil recipe. Your camera and screen stay on your machine.</p>
       </div>
+      <figure class="markplate">
+        <div class="stage-top">
+          <img src="/sigil.png" width="28" height="28" alt="">
+          <span>On this page</span>
+        </div>
+        <ol>
+          <li><b>1</b><span>Download saves ${DEFAULT_ASSET} from this Worker.</span></li>
+          <li><b>2</b><span>The desk below keeps the veil on until you lift it.</span></li>
+          <li><b>3</b><span>PulseCheck and the preview stay on this page.</span></li>
+        </ol>
+        <figcaption>Hosted consent, PulseCheck, and a veil preview. After Download, <code>veillock ui</code> runs on 127.0.0.1:8761.</figcaption>
+      </figure>
     </div>
+    <ul class="features">
+      <li>
+        <h2>Consent desk</h2>
+        <p>The veil stays on until you turn obfuscation off or accept a call through AZ-OS.</p>
+      </li>
+      <li>
+        <h2>PulseCheck</h2>
+        <p>A failed pulse keeps the public feed as noise. The page never claims plaintext.</p>
+      </li>
+      <li>
+        <h2>Veil preview</h2>
+        <p>Compose a natural camera wash or synthetic screen panels. Spatial camera pixels are not copied.</p>
+      </li>
+      <li>
+        <h2>Call-app steps</h2>
+        <p>Local steps for Zoom, Meet, Teams, FaceTime, and Skype, on your device.</p>
+      </li>
+    </ul>
+    <nav class="toc" aria-label="On this page">
+      <a href="#desk">Desk</a>
+      <a href="#meshStrip">Live Nodes</a>
+      <a href="#counts">Downloads</a>
+      <a href="#cite">Cite</a>
+    </nav>
   </header>
 
-  <p class="banner" role="note"><strong>Honest limit.</strong> VeilLock does not inject into FaceTime, Zoom, Meet, Teams, or Skype. iOS FaceTime cannot pick a third-party camera. This page is a consent desk and veil recipe — not a virtual camera and not a call interceptor. YOUR camera/screen only. You control the lift.</p>
   <div class="statusbar" id="status-bar">
     <span class="chip" id="chip-health">Checking VeilLock…</span>
     <span class="chip warn">Hosted receipt · local tether</span>
     <span class="chip">v0.2.0</span>
   </div>
-  <div id="meshStrip" aria-label="Suite Live Nodes">
-    <div class="live"><b id="meshLiveCount">0</b> Live Nodes</div>
-    <div id="meshLine">Suite mesh: off (default). QNM-BUILD-1.0 + QNS-CD-1.0. Not an anonymity network.</div>
-    <div class="rollup">live <b id="qnmLive">0</b> · locked <b id="qnmLocked">0</b> · isolated <b id="qnmIsolated">0</b></div>
-    <div>No Node Gate · No auto-heal · Aziel Eliab only</div>
-    <div>
-      <input id="meshBearer" type="text" maxlength="80" placeholder="bearer (required to enable)" aria-label="mesh bearer">
-      <button id="meshEnable" type="button" title="Enable suite mesh. Declared bearer required. Default off.">Enable</button>
-      <button id="meshDisable" type="button" title="Disable suite mesh (always allowed)">Disable</button>
-      <button id="meshJoin" type="button" title="Join as veillock. Refused while mesh is OFF. No auto-join.">Join</button>
-      <button id="meshLeave" type="button" title="Leave this node. No auto-heal.">Leave</button>
-    </div>
-    <p id="meshProducts">Catalog MCP mesh_* · FragGate slug=mesh · /v1/mesh/* PROXY · QNS-CD-1.0 cite · no public qnsd proxy · not AnonBroadcast · not AZMail ring · not a Node Gate</p>
-  </div>
 
-  <section class="desk" aria-label="VeilLock workspace">
+  <section class="desk" id="desk" aria-label="VeilLock workspace">
     <article class="card" id="consent-desk">
       <h2>Consent desk</h2>
       <p class="help">The veil stays on unless you turn obfuscation off or accept a call through AZ-OS. Hosted AZ-OS halt is a token, not killing this computer.</p>
@@ -291,7 +426,7 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
 
     <article class="card wide" id="apps-desk">
       <h2>Call apps — your device only</h2>
-      <p class="help">These are local steps. VeilLock does not inject into the app. After install, the desktop tether can advertise a camera named VeilLock.</p>
+      <p class="help">These are local steps on your device. After install, the desktop tether can advertise a camera named VeilLock.</p>
       <div class="apps" id="app-picks">
         <button type="button" class="ghost" data-app="zoom" aria-pressed="false">Zoom</button>
         <button type="button" class="ghost" data-app="meet" aria-pressed="false">Meet</button>
@@ -306,34 +441,45 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
     </article>
   </section>
 
-  <section class="card" id="install">
+  <div id="meshStrip" aria-label="Suite Live Nodes">
+    <div class="live"><b id="meshLiveCount">0</b> Live Nodes</div>
+    <div id="meshLine">Suite mesh: off (default). QNM-BUILD-1.0 + QNS-CD-1.0. Not an anonymity network.</div>
+    <div class="rollup">live <b id="qnmLive">0</b> · locked <b id="qnmLocked">0</b> · isolated <b id="qnmIsolated">0</b></div>
+    <div>No Node Gate · No auto-heal · Aziel Eliab only</div>
+    <div class="mesh-actions">
+      <input id="meshBearer" type="text" maxlength="80" placeholder="bearer (required to enable)" aria-label="mesh bearer">
+      <button id="meshEnable" type="button" title="Enable suite mesh. Declared bearer required. Default off.">Enable</button>
+      <button id="meshDisable" type="button" title="Disable suite mesh (always allowed)">Disable</button>
+      <button id="meshJoin" type="button" title="Join as veillock. Refused while mesh is OFF. No auto-join.">Join</button>
+      <button id="meshLeave" type="button" title="Leave this node. No auto-heal.">Leave</button>
+    </div>
+    <p id="meshProducts">Catalog MCP mesh_* · FragGate slug=mesh · /v1/mesh/* PROXY · QNS-CD-1.0 cite · no public qnsd proxy · not AnonBroadcast · not AZMail ring · not a Node Gate</p>
+  </div>
+
+  <section class="card" id="counts">
+    <h2>Counted downloads</h2>
     <div class="nums">
       <p class="count">${v}<span>Views</span></p>
       <p class="count">${n}<span>Downloads</span></p>
     </div>
-    <p class="help"><strong>Two big buttons.</strong> Download saves the gzip (the Downloads number goes up). One-click install copies a Terminal command. After it finishes, type <code>veillock ui</code>.</p>
-    <div class="btns">
-      <a class="btn primary" href="/download?asset=${DEFAULT_ASSET}">Download</a>
-      <button type="button" class="btn install" id="install-btn">One-click install</button>
-    </div>
-    <pre id="install-cmd">${INSTALL_LINE}</pre>
-    <p class="help">Then run: <code>veillock ui</code> and open http://127.0.0.1:8761 (this computer only).</p>
-    <p class="meta">The download count ticks on the Download click. The Worker serves the gzip (HTTP 200). No 302 to GitHub. Forks using this same link are counted automatically. ${DEFAULT_ASSET} — ${n} counted.</p>
-    <p class="iso">Isolated counter: Worker <code>veillock-download-tracker</code>, project <code>veillock</code>, KV <code>VEILLOCK_DOWNLOADS</code>. Not mixed with any other product. /v1 does not increment downloads.</p>
+    <p class="help">Download serves ${DEFAULT_ASSET} from this Worker (HTTP 200). The count includes this repository and every branch and fork that uses the same link. /v1 does not increment downloads. ${n} counted.</p>
+    <p class="iso">Isolated counter: Worker <code>veillock-download-tracker</code>, project <code>veillock</code>, KV <code>VEILLOCK_DOWNLOADS</code>.</p>
     <p class="meta">GitHub: stars ${stars} · forks ${forks} · watchers ${watchers}</p>
     <p class="meta">Paper: <a href="${DOI_URL}">doi:${DOI}</a> · <a href="${ZENODO}">Zenodo</a> · Apache-2.0 · Eliab, Aziel</p>
-    <p class="meta"><a href="/stats">JSON stats</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/v1/mesh">/v1/mesh</a> · <a href="/v1/skill">Skill</a> · <a href="/ai">AI runtime</a> · <a href="${GITHUB}">GitHub</a> · <a href="${GITHUB_LATEST}">releases</a> · <a href="/cite.json">cite.json</a></p>
     <h2>Per repo / branch / fork</h2>
     <ul class="break">${breakdownHtml}</ul>
   </section>
 
-  <section class="cite" id="cite">
+  <section class="card cite" id="cite">
     <h2>How to cite</h2>
     <p>Aziel Eliab. VeilLock. ${GITHUB}. ${HOST}. ${DOI_URL}.</p>
-    <p><a href="https://aziel-runtime.vibelock.workers.dev/">Catalog</a> · <a href="${GITHUB}">GitHub</a> · <a href="${HOST}/download">Download</a> · <a href="${HOST}/cite.json">cite.json</a></p>
-    <p class="iso">Identity is Aziel Eliab only. Forks are welcome and always allowed. Apache-2.0.</p>
+    <p><a href="https://aziel-runtime.vibelock.workers.dev/">Catalog</a> · <a href="${GITHUB}">GitHub</a> · <a href="${HOST}/download?asset=${DEFAULT_ASSET}">Download</a> · <a href="${HOST}/cite.json">cite.json</a></p>
+    <p class="iso">Author Aziel Eliab. Forks are welcome and always allowed. Apache-2.0.</p>
   </section>
-  <footer>VeilLock 0.2.0 · you control the veil · not a FaceTime inject · Aziel Eliab</footer>
+  <footer>
+    <p>Apache-2.0 · Aziel Eliab · VeilLock 0.2.0</p>
+    <p><a href="/stats">JSON stats</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/v1/mesh">/v1/mesh</a> · <a href="/v1/skill">Skill</a> · <a href="/ai">AI runtime</a> · <a href="${GITHUB}">GitHub</a> · <a href="${GITHUB_LATEST}">releases</a></p>
+  </footer>
 </main>
 <script>
 (function () {
@@ -360,6 +506,33 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
       }
     });
   }
+
+  function paintOs() {
+    var el = document.getElementById("os-line");
+    if (!el) return;
+    var ua = navigator.userAgent || "";
+    var plat = navigator.platform || "";
+    try {
+      if (navigator.userAgentData && navigator.userAgentData.platform) plat = navigator.userAgentData.platform;
+    } catch (e) {}
+    var phone = "";
+    var name = "";
+    if (/android/i.test(ua)) phone = "Android";
+    else if (/iPhone|iPad|iPod/i.test(ua)) phone = "iPhone or iPad";
+    else if (/Win/i.test(plat) || /Windows/i.test(ua)) name = "Windows";
+    else if (/Mac/i.test(plat) || /Macintosh|Mac OS/i.test(ua)) name = "macOS";
+    else if (/Linux|X11|CrOS/i.test(plat) || /Linux/i.test(ua)) name = "Linux";
+    if (phone) {
+      el.textContent = "Detected " + phone + ". The counted download is the Python package for a computer.";
+      return;
+    }
+    if (name === "Windows") {
+      el.textContent = "Detected Windows. The download is the Python package. The Terminal command is for macOS and Linux.";
+      return;
+    }
+    if (name) el.textContent = "Detected " + name + ". One Python package for macOS, Linux, and Windows.";
+  }
+  paintOs();
 
   function el(id) { return document.getElementById(id); }
   function setHtml(node, html) { if (node) node.innerHTML = html; }
@@ -388,7 +561,7 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
   }
   function consentCopy(data) {
     if (!data || !data.ok) return "The desk could not write a receipt.";
-    if (data.veil === "on") return "Camera and video stay protected. Hosted receipt only — not a virtual camera.";
+    if (data.veil === "on") return "Camera and video stay protected. This desk writes a hosted receipt.";
     if (data.reason && data.reason.indexOf("obfuscation") !== -1) return "You turned obfuscation off. The veil is lifted because you said so.";
     return "You accepted a call through AZ-OS. The veil is lifted for this session.";
   }
@@ -523,7 +696,7 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
       showResult("apps-result", "fail", "No steps", data && data.note ? data.note : "No local-app steps.");
       return;
     }
-    var title = chosen.app === "facetime" ? "FaceTime — no inject" : chosen.app + " — your device only";
+    var title = (chosen.app === "facetime" ? "FaceTime" : chosen.app) + " — your device only";
     var items = (chosen.steps || []).map(function (s) { return "<li>" + s + "</li>"; }).join("");
     var note = data.note || data.limitation || "";
     el("apps-result").className = "result";
