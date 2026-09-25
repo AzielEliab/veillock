@@ -419,10 +419,11 @@ against a JPEG-like recompression, and seal and play a synthetic
 AES-256-GCM recording in memory. The same desk plans a join link and an
 engulf. It does not join the call or launch the app. Numbers shown there
 are computed for that preview. The layer map is
-[docs/layers.md](docs/layers.md). `suite/azinterface-tile.json` is the
-handoff for AZInterface. That desk is a separate repository. This file
-does not merge the products. Until AZInterface reads the tile, VeilLock
-still opens with `veillock ui`.
+[docs/layers.md](docs/layers.md). The human UI is aziel-runtime.
+`suite/runtime-ui.json` (schema `veillock-runtime-ui-1`) is the contract
+that UI can cross-update against. Slug `veillock` stays local-only, with
+no public door ops. This package does not append the ACT-RECEIPT-1.0 chain.
+Until that UI opens the desk, VeilLock still opens with `veillock ui`.
 
 ## License
 

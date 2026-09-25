@@ -21,7 +21,10 @@ from veillock.coverage import PROFILE_SCHEMA, _normalize_platform, detect, forma
 from veillock.engulf import plan_engulf
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-TILE_PATH = REPO_ROOT / "suite" / "azinterface-tile.json"
+TILE_PATH = REPO_ROOT / "suite" / "runtime-ui.json"
+SCHEMA = "veillock-runtime-ui-1"
+ACT_RECEIPT = "ACT-RECEIPT-1.0"
+RUNTIME_RECEIPT_FIELDS = ("hash", "request", "output", "event")
 
 ENTRIES = (
     "wrap",
@@ -37,7 +40,8 @@ SAFE_CALLS = (
     "describe",
     "join_plan",
     "engulf_plan",
-    "suite_tile",
+    "status_report",
+    "runtime_ui",
 )
 
 _PLATFORMS = frozenset(
@@ -102,6 +106,24 @@ def sandbox_environ(source: dict[str, str] | None = None) -> dict[str, str]:
 
     env = source if source is not None else dict(os.environ)
     return {key: env[key] for key in _SANDBOX_ENV if env.get(key)}
+
+
+def _receipt(tool: str, *, status: str = "plan") -> dict[str, Any]:
+    """Handoff fields only. The public ACT chain is appended by aziel-runtime."""
+    return {
+        "spec": ACT_RECEIPT,
+        "writes_public_chain": False,
+        "fields_owned_by_runtime": list(RUNTIME_RECEIPT_FIELDS),
+        "attempt_fields_filled_by_runtime": [
+            "request_id",
+            "attempt_n",
+            "parent_receipt_id",
+            "correlation_id",
+        ],
+        "surface": "veillock-local",
+        "tool": tool,
+        "status": status,
+    }
 
 
 def _closed(**extra: Any) -> dict[str, Any]:
@@ -176,7 +198,11 @@ def join_plan(
     return _closed(
         ok=True,
         layer="strategy",
-        schema=PROFILE_SCHEMA,
+        schema=SCHEMA,
+        profile_schema=PROFILE_SCHEMA,
+        human_ui="aziel-runtime",
+        local_only=True,
+        receipt=_receipt("join_plan"),
         recording_aes_256_gcm=True,
         assumed_have_vcam=have_vcam,
         capability_source="assumed" if have_vcam is not None else "observed",
@@ -224,6 +250,10 @@ def engulf_plan(
         _closed(
             ok=True,
             layer="strategy",
+            schema=SCHEMA,
+            human_ui="aziel-runtime",
+            local_only=True,
+            receipt=_receipt("engulf_plan"),
             engulfs=bool(plan.engulfs),
             launch="cli-only",
             assumed_have_vcam=have_vcam,
@@ -234,11 +264,13 @@ def engulf_plan(
     return body
 
 
-def suite_tile() -> dict[str, Any]:
-    """The handoff AZInterface can read. This repo does not boot that desk."""
+def runtime_ui() -> dict[str, Any]:
+    """Contract for the aziel-runtime human UI. This repo does not boot that UI."""
     tile = json.loads(TILE_PATH.read_text(encoding="utf-8"))
+    if tile.get("schema") != SCHEMA:
+        raise ValueError("runtime UI contract schema drifted")
     tile["present_in_this_repo"] = True
-    tile["consumed_by_azinterface_in_this_repo"] = False
+    tile["boots_human_ui"] = False
     tile["entries"] = list(ENTRIES)
     tile["safe_calls"] = list(SAFE_CALLS)
     tile["orchestration_host"] = {
@@ -247,9 +279,34 @@ def suite_tile() -> dict[str, Any]:
         "node_mesh": False,
         "forensic": False,
         "note": (
-            "A later host may call describe, join_plan, engulf_plan, and suite_tile. "
-            "Those calls do not launch, join, register a camera, return a key, or lift the veil. "
-            "Engulf launch stays on the veillock engulf CLI, which plans again before it starts anything."
+            "A later host may call describe, join_plan, engulf_plan, status_report, and runtime_ui. "
+            "Those calls do not launch, join, register a camera, return a key, lift the veil, "
+            "or append the public ACT-RECEIPT chain."
         ),
     }
     return tile
+
+
+def suite_tile() -> dict[str, Any]:
+    """Same contract as ``runtime_ui``. Kept so older local callers still resolve."""
+    return runtime_ui()
+
+
+def status_report() -> dict[str, Any]:
+    """Consent status plus the versioned contract. Does not lift the veil."""
+    from veillock.azos import HOOK
+
+    consent = HOOK.status()
+    return _closed(
+        ok=True,
+        schema=SCHEMA,
+        human_ui="aziel-runtime",
+        local_only=True,
+        public_door_ops=[],
+        product="veillock",
+        author="Aziel Eliab",
+        receipt=_receipt("status_report", status="status"),
+        consent=consent,
+        veil=consent.get("veil"),
+        azos_hook=consent.get("azos_hook"),
+    )

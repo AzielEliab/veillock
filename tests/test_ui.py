@@ -133,7 +133,8 @@ def test_ui_join_engulf_and_suite_stay_on_the_plan() -> None:
         assert b"Plan this link" in page
         assert b"Plan engulf" in page
         assert b"Seal and play in memory" in page
-        assert b"AZInterface" in page
+        assert b"aziel-runtime" in page
+        assert b"ACT-RECEIPT" in page
         req = urllib.request.Request(
             f"http://127.0.0.1:{port}/api/join",
             data=json.dumps(
@@ -166,16 +167,37 @@ def test_ui_join_engulf_and_suite_stay_on_the_plan() -> None:
         assert "does not hook" in plan["note"]
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/suite", timeout=5) as res:
             tile = json.loads(res.read().decode("utf-8"))
-        assert tile["consumed_by_azinterface_in_this_repo"] is False
-        assert tile["merged_into_azinterface"] is False
-        assert tile["implemented_in_azinterface_repo"] is False
+        assert tile["schema"] == "veillock-runtime-ui-1"
+        assert tile["human_ui"] == "aziel-runtime"
+        assert tile["local_only"] is True
+        assert tile["public_door_ops"] == []
+        assert tile["separate_azinterface_product"] is False
+        assert tile["boots_human_ui"] is False
+        assert "azinterface_repo" not in tile
         assert tile["honesty"]["aes_on_call_path"] is False
         assert tile["honesty"]["increments_downloads"] is False
+        assert tile["receipts"]["spec"] == "ACT-RECEIPT-1.0"
+        assert tile["receipts"]["writes_public_chain"] is False
+        assert tile["receipts"]["fields_owned_by_runtime"] == ["hash", "request", "output", "event"]
+        assert "veil" in tile["receipts"]["local_consent_fields"]
         assert tile["orchestration_host"]["built"] is False
         assert tile["orchestration_host"]["mcp"] is False
         assert "join_plan" in tile["safe_calls"]
-        assert "wrap" in tile["entries"]
-        assert "play" in tile["entries"]
+        assert "status_report" in tile["safe_calls"]
+        assert "wrap" in tile["calls"]
+        assert "play" in tile["calls"]
+        assert "status" in tile["calls"]
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=5) as res:
+            status = json.loads(res.read().decode("utf-8"))
+        assert status["schema"] == "veillock-runtime-ui-1"
+        assert status["returns_key"] is False
+        assert status["lifts_veil"] is False
+        assert status["receipt"]["writes_public_chain"] is False
+        assert status["consent"]["azos_hook"] is True
+        assert status["consent"]["veil"] in ("on", "lifted")
+        assert joined["schema"] == "veillock-runtime-ui-1"
+        assert joined["profile_schema"] == 1
+        assert joined["receipt"]["writes_public_chain"] is False
         lied = urllib.request.Request(
             f"http://127.0.0.1:{port}/api/join",
             data=json.dumps(

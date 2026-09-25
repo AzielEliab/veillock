@@ -227,7 +227,7 @@ const WRAP_SKILL_ADDENDUM = `
 | VeilLock link | **AES-256-GCM** on deflate-encoded frames over TCP between two VeilLock users. The call app still carries only the veil or the scramble. Both ends need VeilLock. A wrong key fails closed. |
 | Browser encoded frames | **AES-256-GCM** on each encoded frame when both Chromium browsers run the extension and share the key. A forwarding relay sees ciphertext. A server that decodes or transcodes does not recover the picture. |
 
-PulseCheck failure halts to veil or noise. Plaintext is not sent. The veil stays on until you lift it. Hosted \`GET /v1/wrap\` describes this. It does not scramble pixels, join a call, register a camera, or increment downloads. The loopback desk (\`veillock ui\` on 127.0.0.1:8761) plans join and engulf through the same adapter as the CLI and does not launch them. \`suite/azinterface-tile.json\` is the AZInterface handoff. VeilLock is not merged into AZInterface.
+PulseCheck failure halts to veil or noise. Plaintext is not sent. The veil stays on until you lift it. Hosted \`GET /v1/wrap\` describes this. It does not scramble pixels, join a call, register a camera, or increment downloads. The loopback desk (\`veillock ui\` on 127.0.0.1:8761) plans join and engulf through the same adapter as the CLI and does not launch them. The human UI is aziel-runtime. Contract schema veillock-runtime-ui-1 is \`suite/runtime-ui.json\`. Public door ops for slug veillock stay empty. This package does not append the ACT-RECEIPT-1.0 chain.
 
 iPhone FaceTime cannot select a third-party camera or microphone. Most mobile clients cannot either.
 
@@ -321,19 +321,30 @@ export function wrapContract() {
     author: "Aziel Eliab",
     identity: "Aziel Eliab only",
     surfaces: {
-      layer: "Engine, then strategy adapters, then one plan object, then CLI, loopback UI, extension, this worker, and the AZInterface tile",
+      layer: "Engine, then strategy adapters, then one plan object, then CLI, loopback UI, extension, this worker, and the aziel-runtime human UI contract",
+      schema: "veillock-runtime-ui-1",
       loopback_ui: "veillock ui binds 127.0.0.1:8761. Plan this link and Plan engulf call the same adapter as the CLI. The desk ignores a caller have_vcam or capture hint, and an engulf plan has no command line. The desk seals and plays an AES-256-GCM recording in memory. It does not launch an app, join a call, return a key, or lift the veil.",
-      entries: ["wrap", "engulf", "join", "link", "play", "record"],
-      cli: "veillock wrap, engulf, join, link, play, record, compat. Join and compat print the coverage report. Engulf launches only from the CLI when the plan says it can.",
+      entries: ["wrap", "engulf", "join", "link", "play", "record", "status"],
+      cli: "veillock wrap, engulf, join, link, play, record, compat, azos. Join and compat print the coverage report. Engulf launches only from the CLI when the plan says it can. azos is the consent status and does not append a public receipt.",
       extension: "Chromium getUserMedia veil, and encoded-frame AES-256-GCM when both peers share the key. Not Firefox or Safari.",
       worker: "GET /v1/wrap describes the contract. It does not run the join planner, scramble pixels, register a camera, or increment downloads.",
-      azinterface: {
-        tile: "suite/azinterface-tile.json",
-        merged_into_azinterface: false,
-        implemented_in_azinterface_repo: false,
-        repo: "https://github.com/AzielEliab/azinterface",
+      runtime_ui: {
+        schema: "veillock-runtime-ui-1",
+        human_ui: "aziel-runtime",
+        repo: "https://github.com/AzielEliab/aziel-runtime",
+        contract: "suite/runtime-ui.json",
+        software_slug: "veillock",
+        catalog_status: "local_only",
+        public_door_ops: [],
+        local_only: true,
         launch: ["veillock", "ui"],
-        note: "Handoff only. AZInterface is a separate Softwares desk. This worker is not a Softwares-tab product and does not boot that desk.",
+        receipts: {
+          spec: "ACT-RECEIPT-1.0",
+          writes_public_chain: false,
+          fields_owned_by_runtime: ["hash", "request", "output", "event"],
+          local_consent: "veil, obfuscate, call_accepted, actor, azos_hook on /v1/call-accept and the local AZ-OS hook",
+        },
+        note: "Cross-update target is the aziel-runtime human UI. This worker does not boot that UI and does not append the public receipt chain.",
       },
     },
   };

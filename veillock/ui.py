@@ -207,9 +207,9 @@ PAGE = r"""<!DOCTYPE html>
     <pre class="apps" id="engulf-report">Idle. Nothing is launched.</pre>
   </section>
   <section class="card" id="suite">
-    <h2>AZInterface tether</h2>
-    <p class="help">VeilLock stays its own Softwares package. The tile is a handoff. This repository does not boot AZInterface and does not merge the two products.</p>
-    <pre class="apps" id="suite-status">Loading the tile.</pre>
+    <h2>aziel-runtime</h2>
+    <p class="help">The human UI is aziel-runtime. This desk is the local VeilLock surface that UI can open. The public door lists no ops for this slug. Consent stays the AZ-OS fields. The public ACT-RECEIPT chain is not written here.</p>
+    <pre class="apps" id="suite-status">Loading the contract.</pre>
   </section>
   <p class="err" id="err" hidden></p>
   <footer>VeilLock __VERSION__ · AZ-OS hook · you control the veil · Apache-2.0 · <code>veillock ui</code></footer>
@@ -477,9 +477,11 @@ PAGE = r"""<!DOCTYPE html>
     try {
       const res = await fetch("/api/suite");
       const data = await res.json();
-      $("suite-status").textContent = (data.title || "VeilLock")
-        + " · merged_into_azinterface=" + data.merged_into_azinterface
-        + " · consumed_by_azinterface_in_this_repo=" + data.consumed_by_azinterface_in_this_repo
+      const receipts = data.receipts || {};
+      $("suite-status").textContent = (data.schema || "")
+        + " · human_ui=" + data.human_ui
+        + " · local_only=" + data.local_only
+        + " · writes_public_chain=" + receipts.writes_public_chain
         + "\\n" + (data.handoff || "");
     } catch (e) { /* the static line stays if the tile cannot be read */ }
   }
@@ -576,9 +578,14 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, MIC_RUNTIME.status())
             return
         if path == "/api/suite":
-            from veillock.surfaces import suite_tile
+            from veillock.surfaces import runtime_ui
 
-            self._json(200, suite_tile())
+            self._json(200, runtime_ui())
+            return
+        if path == "/api/status":
+            from veillock.surfaces import status_report
+
+            self._json(200, status_report())
             return
         self._json(404, {"error": "not found"})
 
