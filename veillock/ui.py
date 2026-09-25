@@ -145,7 +145,7 @@ PAGE = r"""<!DOCTYPE html>
     <p class="help">Preview uses a synthetic frame, a JPEG-like recompression, and the real key check. Numbers below are computed for this preview. The call path is a scramble. Record / play on this page seals video and audio with AES-256-GCM and decrypts in memory. No plaintext file is written. Someone can still point a screen recorder at this window.</p>
     <p style="margin-top:0.95rem">
       <button class="primary" id="wrap-preview" type="button">Preview scramble</button>
-      <button class="ghost" id="wrap-record" type="button">Seal a recording</button>
+      <button class="ghost" id="wrap-record" type="button">Seal and play in memory</button>
       <button class="ghost" id="mic-start" type="button">Start microphone</button>
       <button class="ghost" id="mic-stop" type="button">Stop microphone</button>
     </p>
@@ -168,6 +168,48 @@ PAGE = r"""<!DOCTYPE html>
       <button class="primary" id="e2e-demo" type="button">Seal an encoded frame</button>
     </p>
     <p class="help" id="e2e-status">Idle. Both ends need the key. A wrong key fails closed.</p>
+  </section>
+  <section class="card" id="join">
+    <h2>Join a link</h2>
+    <p class="help">Plans the same report as <code>veillock join</code>. This desk does not join the call, register a camera, or launch an app. A gallery is one outgoing veil or scramble, not an AES mesh.</p>
+    <label>Meeting URL</label>
+    <input id="join-url" type="text" value="https://teams.microsoft.com/l/meetup-join/example" style="width:100%;background:#0d0b14;color:var(--ink);border:1px solid var(--line);padding:0.45rem 0.55rem;border-radius:6px;">
+    <label>Platform</label>
+    <select id="join-platform">
+      <option value="chromium" selected>chromium</option>
+      <option value="firefox">firefox</option>
+      <option value="safari">safari</option>
+      <option value="linux">linux</option>
+      <option value="windows">windows</option>
+      <option value="darwin">darwin</option>
+      <option value="ios">ios</option>
+    </select>
+    <p style="margin-top:0.95rem">
+      <button class="primary" id="join-plan" type="button">Plan this link</button>
+    </p>
+    <pre class="apps" id="join-report">Idle. Nothing is joined.</pre>
+  </section>
+  <section class="card" id="engulf-plan">
+    <h2>Engulf plan</h2>
+    <p class="help">Asks the engulf adapter only. The desk does not launch the app and does not register a camera. Windows without the local helper does not hook.</p>
+    <label>App</label>
+    <input id="engulf-app" type="text" value="zoom" style="width:100%;background:#0d0b14;color:var(--ink);border:1px solid var(--line);padding:0.45rem 0.55rem;border-radius:6px;">
+    <label>Platform</label>
+    <select id="engulf-platform">
+      <option value="linux">linux</option>
+      <option value="windows" selected>windows</option>
+      <option value="darwin">darwin</option>
+      <option value="ios">ios</option>
+    </select>
+    <p style="margin-top:0.95rem">
+      <button class="primary" id="engulf-plan-btn" type="button">Plan engulf</button>
+    </p>
+    <pre class="apps" id="engulf-report">Idle. Nothing is launched.</pre>
+  </section>
+  <section class="card" id="suite">
+    <h2>AZInterface tether</h2>
+    <p class="help">VeilLock stays its own Softwares package. The tile is a handoff. This repository does not boot AZInterface and does not merge the two products.</p>
+    <pre class="apps" id="suite-status">Loading the tile.</pre>
   </section>
   <p class="err" id="err" hidden></p>
   <footer>VeilLock __VERSION__ · AZ-OS hook · you control the veil · Apache-2.0 · <code>veillock ui</code></footer>
@@ -392,6 +434,56 @@ PAGE = r"""<!DOCTYPE html>
       $("err").textContent = String(e.message || e);
     } finally { $("wrap-record").disabled = false; }
   };
+  $("join-plan").onclick = async () => {
+    $("err").hidden = true;
+    try {
+      const res = await fetch("/api/join", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({url: $("join-url").value, platform: $("join-platform").value}),
+      });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) throw new Error(data.error || ("HTTP " + res.status));
+      $("join-report").textContent = data.report
+        + "\\njoined_call=" + data.joined_call
+        + "\\naes_on_call_path=" + data.aes_on_call_path
+        + "\\ncamera=" + data.camera;
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    }
+  };
+  $("engulf-plan-btn").onclick = async () => {
+    $("err").hidden = true;
+    try {
+      const res = await fetch("/api/engulf/plan", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({app: $("engulf-app").value, platform: $("engulf-platform").value}),
+      });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) throw new Error(data.error || ("HTTP " + res.status));
+      $("engulf-report").textContent = (data.note || "")
+        + "\\nengulfs=" + data.engulfs
+        + "\\nexecuted=" + data.executed
+        + "\\nregistered_camera=" + data.registered_camera
+        + "\\naes_on_call_path=" + data.aes_on_call_path;
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    }
+  };
+  async function refreshSuite() {
+    try {
+      const res = await fetch("/api/suite");
+      const data = await res.json();
+      $("suite-status").textContent = (data.title || "VeilLock")
+        + " · merged_into_azinterface=" + data.merged_into_azinterface
+        + " · consumed_by_azinterface_in_this_repo=" + data.consumed_by_azinterface_in_this_repo
+        + "\\n" + (data.handoff || "");
+    } catch (e) { /* the static line stays if the tile cannot be read */ }
+  }
+  refreshSuite();
   $("copy-apps").onclick = async () => {
     const text = $("apps-help").textContent;
     try {
@@ -483,6 +575,11 @@ class Handler(BaseHTTPRequestHandler):
 
             self._json(200, MIC_RUNTIME.status())
             return
+        if path == "/api/suite":
+            from veillock.surfaces import suite_tile
+
+            self._json(200, suite_tile())
+            return
         self._json(404, {"error": "not found"})
 
     def do_POST(self) -> None:  # noqa: N802
@@ -544,6 +641,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/record/demo":
             self._record_demo()
+            return
+        if path == "/api/join":
+            self._join_plan(raw)
+            return
+        if path == "/api/engulf/plan":
+            self._engulf_plan(raw)
             return
         if path == "/api/tether/start":
             try:
@@ -609,6 +712,70 @@ class Handler(BaseHTTPRequestHandler):
             )
         except Exception as exc:  # noqa: BLE001
             self._json(400, {"error": str(exc)})
+
+    def _join_plan(self, raw: bytes) -> None:
+        from veillock.surfaces import join_plan
+
+        try:
+            body = json.loads(raw.decode("utf-8") or "{}") if raw else {}
+            if not isinstance(body, dict):
+                body = {}
+            windows_build = body.get("windows_build")
+            self._json(
+                200,
+                join_plan(
+                    str(body.get("url") or "") or None,
+                    process=body.get("process") or None,
+                    platform=body.get("platform") or None,
+                    bundle_id=body.get("bundle") or body.get("bundle_id") or None,
+                    have_vcam=True if body.get("vcam") or body.get("have_vcam") else None,
+                    opens_v4l2=bool(body.get("v4l2")),
+                    sandboxed=bool(body.get("sandboxed")),
+                    capture=body.get("capture") or None,
+                    windows_build=int(windows_build) if windows_build not in (None, "") else None,
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._json(
+                400,
+                {
+                    "ok": False,
+                    "error": str(exc),
+                    "joined_call": False,
+                    "executed": False,
+                    "aes_on_call_path": False,
+                },
+            )
+
+    def _engulf_plan(self, raw: bytes) -> None:
+        from veillock.surfaces import engulf_plan
+
+        try:
+            body = json.loads(raw.decode("utf-8") or "{}") if raw else {}
+            if not isinstance(body, dict):
+                body = {}
+            windows_build = body.get("windows_build")
+            flagged = body.get("have_vcam", body.get("vcam"))
+            self._json(
+                200,
+                engulf_plan(
+                    str(body.get("app") or "zoom"),
+                    platform=body.get("platform") or None,
+                    have_vcam=True if flagged else None,
+                    windows_build=int(windows_build) if windows_build not in (None, "") else None,
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._json(
+                400,
+                {
+                    "ok": False,
+                    "error": str(exc),
+                    "executed": False,
+                    "registered_camera": False,
+                    "aes_on_call_path": False,
+                },
+            )
 
     def _e2e_demo(self) -> None:
         from veillock.crypto import DecryptError

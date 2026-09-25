@@ -395,12 +395,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.cmd in ("compat", "join"):
-        from veillock.coverage import coverage_guide_text, detect, format_detection
+        from veillock.coverage import coverage_guide_text
+        from veillock.surfaces import describe
 
         if args.cmd == "join" or args.detect or args.process or args.bundle or args.url:
             import os
             try:
-                found = detect(
+                text = describe(
                     getattr(args, "process", None),
                     platform=args.platform,
                     bundle_id=getattr(args, "bundle", None),
@@ -415,7 +416,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             except ValueError as exc:
                 sys.stderr.write(f"error: {exc}\n")
                 return 2
-            sys.stdout.write(format_detection(found))
+            sys.stdout.write(text)
             return 0
         sys.stdout.write(coverage_guide_text())
         return 0

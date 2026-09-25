@@ -118,3 +118,61 @@ def test_ui_wrap_preview_and_record_demo() -> None:
         httpd.shutdown()
         httpd.server_close()
         thread.join(timeout=2)
+
+
+def test_ui_join_engulf_and_suite_stay_on_the_plan() -> None:
+    import json
+    import urllib.request
+
+    httpd, thread = _start()
+    try:
+        port = httpd.server_address[1]
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5) as res:
+            page = res.read()
+        assert b"Plan this link" in page
+        assert b"Plan engulf" in page
+        assert b"Seal and play in memory" in page
+        assert b"AZInterface" in page
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/join",
+            data=json.dumps(
+                {
+                    "url": "https://teams.microsoft.com/l/meetup-join/abc",
+                    "platform": "chromium",
+                }
+            ).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as res:
+            joined = json.loads(res.read().decode("utf-8"))
+        assert joined["camera"] == "extension-getusermedia"
+        assert joined["joined_call"] is False
+        assert joined["aes_on_call_path"] is False
+        assert joined["executed"] is False
+        assert "not an AES mesh" in joined["report"]
+        req2 = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/engulf/plan",
+            data=json.dumps({"app": "zoom", "platform": "windows"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req2, timeout=5) as res:
+            plan = json.loads(res.read().decode("utf-8"))
+        assert plan["executed"] is False
+        assert plan["registered_camera"] is False
+        assert plan["engulfs"] is False
+        assert "does not hook" in plan["note"]
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/suite", timeout=5) as res:
+            tile = json.loads(res.read().decode("utf-8"))
+        assert tile["consumed_by_azinterface_in_this_repo"] is False
+        assert tile["merged_into_azinterface"] is False
+        assert tile["implemented_in_azinterface_repo"] is False
+        assert tile["honesty"]["aes_on_call_path"] is False
+        assert tile["honesty"]["increments_downloads"] is False
+        assert "wrap" in tile["entries"]
+        assert "play" in tile["entries"]
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join(timeout=2)

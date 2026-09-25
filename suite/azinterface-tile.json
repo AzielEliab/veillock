@@ -1,0 +1,37 @@
+{
+  "schema": "azinterface-software-tile-1",
+  "product": "veillock",
+  "title": "VeilLock",
+  "author": "Aziel Eliab",
+  "identity": "Aziel Eliab only",
+  "lamb_lens": ["Service", "Clarity", "Peace"],
+  "merged_into_azinterface": false,
+  "implemented_in_azinterface_repo": false,
+  "azinterface_repo": "https://github.com/AzielEliab/azinterface",
+  "handoff": "AZInterface is a separate Softwares desk. It is not in this repository. When that desk boots Softwares it should launch the local command below. Until it reads this tile, VeilLock still opens with veillock ui on 127.0.0.1:8761. This file does not merge the two products.",
+  "desk": {
+    "launch": ["veillock", "ui"],
+    "url": "http://127.0.0.1:8761/",
+    "bind": "127.0.0.1",
+    "port": 8761
+  },
+  "commands": {
+    "wrap": ["veillock", "wrap", "--mic"],
+    "engulf": ["veillock", "engulf", "--"],
+    "join": ["veillock", "join"],
+    "link": ["veillock", "link"],
+    "play": ["veillock", "play"],
+    "record": ["veillock", "record"],
+    "compat": ["veillock", "compat"]
+  },
+  "honesty": {
+    "aes_on_call_path": false,
+    "recording_aes_256_gcm": true,
+    "call_video": "keyed scramble, not AES-256-GCM",
+    "e2e": "veillock link and Chromium encoded frames are AES-256-GCM between VeilLock peers",
+    "join_does_not_join_the_call": true,
+    "engulf_plan_does_not_launch": true,
+    "increments_downloads": false,
+    "hosted_worker_does_not_register_a_camera": true
+  }
+}

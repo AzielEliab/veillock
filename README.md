@@ -415,8 +415,14 @@ Lamb Lens order: Service, then Clarity, then Peace. Identity is Aziel
 Eliab only. Forks are welcome and always allowed.
 
 The local UI (`veillock ui`) has a Wrap panel: preview the scramble
-against a JPEG-like recompression, and seal a synthetic AES-256-GCM
-recording. Numbers shown there are computed for that preview.
+against a JPEG-like recompression, and seal and play a synthetic
+AES-256-GCM recording in memory. The same desk plans a join link and an
+engulf. It does not join the call or launch the app. Numbers shown there
+are computed for that preview. The layer map is
+[docs/layers.md](docs/layers.md). `suite/azinterface-tile.json` is the
+handoff for AZInterface. That desk is a separate repository. This file
+does not merge the products. Until AZInterface reads the tile, VeilLock
+still opens with `veillock ui`.
 
 ## License
 

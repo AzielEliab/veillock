@@ -291,7 +291,7 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
 
     <article class="card wide" id="apps-desk">
       <h2>Call apps — your device only</h2>
-      <p class="help">These are local steps. VeilLock does not attach to an app that is already running. After install, the desktop tether can advertise a camera named VeilLock.</p>
+      <p class="help">These are local steps. VeilLock does not attach to an app that is already running. After install, the desktop tether can advertise a camera named VeilLock. Join and engulf planning run on the local desk (veillock ui at 127.0.0.1:8761). This hosted page does not join a call or register a camera.</p>
       <div class="apps" id="app-picks">
         <button type="button" class="ghost" data-app="zoom" aria-pressed="false">Zoom</button>
         <button type="button" class="ghost" data-app="meet" aria-pressed="false">Meet</button>

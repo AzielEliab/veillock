@@ -227,7 +227,7 @@ const WRAP_SKILL_ADDENDUM = `
 | VeilLock link | **AES-256-GCM** on deflate-encoded frames over TCP between two VeilLock users. The call app still carries only the veil or the scramble. Both ends need VeilLock. A wrong key fails closed. |
 | Browser encoded frames | **AES-256-GCM** on each encoded frame when both Chromium browsers run the extension and share the key. A forwarding relay sees ciphertext. A server that decodes or transcodes does not recover the picture. |
 
-PulseCheck failure halts to veil or noise. Plaintext is not sent. The veil stays on until you lift it. Hosted \`GET /v1/wrap\` describes this. It does not scramble pixels and it does not increment downloads.
+PulseCheck failure halts to veil or noise. Plaintext is not sent. The veil stays on until you lift it. Hosted \`GET /v1/wrap\` describes this. It does not scramble pixels, join a call, register a camera, or increment downloads. The loopback desk (\`veillock ui\` on 127.0.0.1:8761) plans join and engulf through the same adapter as the CLI and does not launch them. \`suite/azinterface-tile.json\` is the AZInterface handoff. VeilLock is not merged into AZInterface.
 
 iPhone FaceTime cannot select a third-party camera or microphone. Most mobile clients cannot either.
 
@@ -320,6 +320,22 @@ export function wrapContract() {
     lamb_lens: "Service, then Clarity, then Peace",
     author: "Aziel Eliab",
     identity: "Aziel Eliab only",
+    surfaces: {
+      layer: "Engine, then strategy adapters, then one plan object, then CLI, loopback UI, extension, this worker, and the AZInterface tile",
+      loopback_ui: "veillock ui binds 127.0.0.1:8761. Plan this link and Plan engulf call the same adapter as the CLI. The desk seals and plays an AES-256-GCM recording in memory. It does not launch an app or join a call.",
+      entries: ["wrap", "engulf", "join", "link", "play", "record"],
+      cli: "veillock wrap, engulf, join, link, play, record, compat. Join and compat print the coverage report. Engulf launches only from the CLI when the plan says it can.",
+      extension: "Chromium getUserMedia veil, and encoded-frame AES-256-GCM when both peers share the key. Not Firefox or Safari.",
+      worker: "GET /v1/wrap describes the contract. It does not run the join planner, scramble pixels, register a camera, or increment downloads.",
+      azinterface: {
+        tile: "suite/azinterface-tile.json",
+        merged_into_azinterface: false,
+        implemented_in_azinterface_repo: false,
+        repo: "https://github.com/AzielEliab/azinterface",
+        launch: ["veillock", "ui"],
+        note: "Handoff only. AZInterface is a separate Softwares desk. This worker is not a Softwares-tab product and does not boot that desk.",
+      },
+    },
   };
 }
 
@@ -626,12 +642,12 @@ function openapiDoc() {
       "/v1/wrap": {
         get: {
           operationId: "veillockWrapGet",
-          summary: "Call-wrap contract. Live video is a scramble, not AES-256-GCM. Local record/play is AES-256-GCM. Does not increment downloads.",
+          summary: "Call-wrap contract. Live video is a scramble, not AES-256-GCM. Local record/play is AES-256-GCM. Join and engulf planning run on the local desk. Does not join a call, register a camera, or increment downloads.",
           responses: { "200": { description: "Honesty contract for wrap, receive, record, and play" } },
         },
         post: {
           operationId: "veillockWrap",
-          summary: "Call-wrap contract. Live video is a scramble, not AES-256-GCM. Local record/play is AES-256-GCM. Does not increment downloads.",
+          summary: "Call-wrap contract. Live video is a scramble, not AES-256-GCM. Local record/play is AES-256-GCM. Join and engulf planning run on the local desk. Does not join a call, register a camera, or increment downloads.",
           responses: { "200": { description: "Honesty contract for wrap, receive, record, and play" } },
         },
       },
