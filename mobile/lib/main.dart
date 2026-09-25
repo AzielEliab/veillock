@@ -19,7 +19,9 @@ class VeilLockApp extends StatelessWidget {
     return MaterialApp(
       title: 'VeilLock',
       debugShowCheckedModeBanner: false,
-      theme: buildAppTheme(),
+      theme: buildAppTheme(Brightness.light),
+      darkTheme: buildAppTheme(Brightness.dark),
+      themeMode: ThemeMode.system,
       home: const PreviewPage(),
     );
   }
@@ -54,7 +56,7 @@ class _PreviewPageState extends State<PreviewPage> {
     try {
       final cams = await availableCameras();
       if (cams.isEmpty) {
-        setState(() => _camError = 'No camera on this device.');
+        setState(() => _camError = 'No camera on this device. On a computer, run veillock ui.');
         return;
       }
       final front = cams.firstWhere(
@@ -110,28 +112,20 @@ class _PreviewPageState extends State<PreviewPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: SegmentedButton<VeilMode>(
-              segments: const [
-                ButtonSegment(value: VeilMode.private, label: Text('Private')),
-                ButtonSegment(
-                  value: VeilMode.obfuscation,
-                  label: Text('Obfuscation'),
-                ),
-                ButtonSegment(
-                  value: VeilMode.broadcast,
-                  label: Text('Broadcast'),
-                ),
-              ],
-              selected: {_mode},
-              onSelectionChanged: (s) => setState(() => _mode = s.first),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Text(
+              'Keeps this camera veiled until you lift it.',
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              _caption(_mode),
-              style: Theme.of(context).textTheme.bodySmall,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _caption(_mode),
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -166,6 +160,32 @@ class _PreviewPageState extends State<PreviewPage> {
               ),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: ExpansionTile(
+              title: const Text('Advanced'),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: SegmentedButton<VeilMode>(
+                    segments: const [
+                      ButtonSegment(value: VeilMode.private, label: Text('Private')),
+                      ButtonSegment(
+                        value: VeilMode.obfuscation,
+                        label: Text('Obfuscation'),
+                      ),
+                      ButtonSegment(
+                        value: VeilMode.broadcast,
+                        label: Text('Broadcast'),
+                      ),
+                    ],
+                    selected: {_mode},
+                    onSelectionChanged: (s) => setState(() => _mode = s.first),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -174,15 +194,11 @@ class _PreviewPageState extends State<PreviewPage> {
   String _caption(VeilMode m) {
     switch (m) {
       case VeilMode.private:
-        return 'Private: preview dimmed, lock on. Session key is not exported. '
-            'This overlay is not AES-GCM.';
+        return 'Veil on. Private keeps the preview dimmed, with the lock showing.';
       case VeilMode.obfuscation:
-        return 'Natural camera veil (default). Lift only if you turn '
-            'obfuscation off or accept a call through AZ-OS. '
-            'Mobile surface — not AES-GCM ciphertext.';
+        return 'Veil on. People see a natural camera veil until you lift it.';
       case VeilMode.broadcast:
-        return 'Broadcast: authorized-receiver idea. HMAC wrap lives on desktop. '
-            'Phone shows lock + live preview only.';
+        return 'Veil on. Broadcast keeps the lock on this preview.';
     }
   }
 }
@@ -191,30 +207,25 @@ class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
   static const _body =
-      'This app is a local-first VeilLock client. Frames never leave the '
-      'device. No analytics.\n\n'
-      'Consent-gated camera protection via AZ-OS\n'
-      'The camera stays under a privacy veil unless you turn obfuscation '
+      'This app is a local-first VeilLock preview. Frames stay on this '
+      'device.\n\n'
+      'The camera stays under a privacy veil until you turn obfuscation '
       'off or accept a call through AZ-OS. You control both paths.\n\n'
-      'What this phone app is\n'
-      'A live camera preview with Private / Obfuscation / Broadcast modes. '
-      'Obfuscation is a visual veil plus a lock icon. v1 does not implement '
-      'AES-256-GCM. Do not claim GCM on this surface. The Python desktop '
-      'engine remains the AES-GCM pipeline and the AZ-OS hook.\n\n'
+      'About\n'
+      'Private, Obfuscation, and Broadcast live under Advanced. The overlay '
+      'is a visual veil plus a lock icon. AES-256-GCM runs in the Python '
+      'desktop engine, together with the AZ-OS hook.\n\n'
       'Desktop tether into Zoom / FaceTime\n'
-      'The phone does not become a virtual webcam. On the desktop package:\n'
+      'The virtual camera named VeilLock comes from the desktop package:\n'
       '  pip install -e ".[tether]"\n'
       '  veillock tether --source camera --mode obfuscation --device 0\n'
-      'That publishes a virtual camera named VeilLock. The call app chooses it:\n'
+      'The call app chooses it:\n'
       '  Zoom (desktop): Settings → Video → Camera → VeilLock\n'
       '  FaceTime (Mac): Video menu → VeilLock\n'
-      'Default feed is the natural veil until you lift it.\n\n'
-      'FaceTime / iOS limits\n'
-      'iOS cannot inject a replacement camera into FaceTime. Apple does not '
-      'give third-party apps a virtual-camera API on iPhone. This IPA cannot '
-      'feed FaceTime or Zoom on the phone. Use the desktop tether.\n\n'
-      'Not in this app\n'
-      'GodLock and MirageGrid network features are not included. Offline only.';
+      'The public feed stays veiled until you lift it.\n\n'
+      'iPhone FaceTime\n'
+      'iPhone FaceTime has no third-party camera picker. Use the desktop '
+      'tether for FaceTime on a Mac, Zoom, Skype, Meet, or Teams.';
 
   @override
   Widget build(BuildContext context) {

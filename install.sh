@@ -27,6 +27,7 @@ python -m pip install -e .
 
 echo
 echo "Installed VeilLock."
-echo "Run:  veillock ui"
-echo "Then open http://127.0.0.1:8761  (loopback only)"
+echo "1. veillock ui"
+echo "2. Open http://127.0.0.1:8761"
+echo "3. Press Start camera veil"
 echo "Author: Aziel Eliab."

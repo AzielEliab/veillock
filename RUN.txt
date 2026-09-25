@@ -1,0 +1,9 @@
+VeilLock
+Author: Aziel Eliab
+
+1. pip install -e .
+2. veillock ui
+3. Open http://127.0.0.1:8761 and press Start camera veil.
+
+Check this computer: veillock doctor
+Every command: veillock --help

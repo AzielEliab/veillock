@@ -459,9 +459,9 @@ def run_from_args(args: Any) -> int:
         sys.stdout.write("\nstopped\n")
         return 0
     except InstallError as exc:
-        sys.stderr.write(f"error: {exc}\n")
+        sys.stderr.write(f"{exc}\nNext: run veillock tether again after that install.\n")
         return 2
     except (HaltedError, PhoenixError, ValueError, RuntimeError) as exc:
-        sys.stderr.write(f"error: {exc}\n")
+        sys.stderr.write(f"{exc}\nNext: veillock doctor\n")
         return 2
     return 0

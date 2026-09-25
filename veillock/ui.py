@@ -30,136 +30,356 @@ PAGE = r"""<!DOCTYPE html>
 <title>VeilLock</title>
 <style>
   :root {
-    --bg: #0d0b14; --card: #171427; --ink: #efeaf8; --muted: #9a91b3;
-    --line: #2c2744; --accent: #a78bfa; --accent-dim: #3b2d66; --warn: #e0b46a;
+    color-scheme: light;
+    --bg: #f4f0e6;
+    --bar: #fbf8f1;
+    --card: #fffdf8;
+    --ink: #1c1915;
+    --muted: #4e483e;
+    --line: #e3d9c4;
+    --gold: #c9a227;
+    --gold-ink: #1a1408;
+    --danger: #8c2f2f;
+    --shadow: 0 1px 2px rgba(28, 25, 21, 0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #12110e;
+      --bar: #181712;
+      --card: #1e1c17;
+      --ink: #f6f1e6;
+      --muted: #c9c0af;
+      --line: #3c362b;
+      --gold: #c9a227;
+      --gold-ink: #1a1408;
+      --danger: #f0b4b4;
+      --shadow: none;
+    }
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; background: var(--bg); color: var(--ink);
-    font-family: "Iowan Old Style", Palatino, Georgia, serif; }
-  main { max-width: 46rem; margin: 0 auto; padding: 2.4rem 1.25rem 4rem; }
-  .mark { font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase;
-    color: var(--accent); margin: 0 0 0.45rem; }
-  h1 { font-weight: 500; letter-spacing: 0.04em; font-size: 2.1rem; margin: 0 0 0.4rem; }
-  .motto { font-style: italic; color: var(--muted); margin: 0; }
-  .local { display: inline-block; margin-top: 0.85rem; font-size: 0.78rem;
-    color: var(--muted); border: 1px solid var(--line); padding: 0.2rem 0.55rem;
-    border-radius: 999px; font-family: ui-monospace, monospace; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-    padding: 1.15rem 1.2rem 1.25rem; margin: 1.1rem 0; }
-  h2 { font-size: 1.02rem; font-weight: 500; margin: 0 0 0.75rem; }
-  p.help { color: var(--muted); font-size: 0.92rem; margin: 0 0 0.9rem; }
-  label { display: block; font-size: 0.82rem; color: var(--muted); margin: 0.55rem 0 0.28rem; }
-  select { width: 100%; background: #0d0b14; color: var(--ink); border: 1px solid var(--line);
-    padding: 0.45rem 0.55rem; border-radius: 6px; }
-  button.primary { font-family: inherit; cursor: pointer; border: 0; border-radius: 8px;
-    padding: 0.55rem 1.15rem; background: var(--accent); color: #1a1230; font-weight: 600; }
-  button:disabled { opacity: 0.5; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0.85rem; }
-  canvas { width: 100%; image-rendering: pixelated; background: #000; border: 1px solid var(--line);
-    border-radius: 6px; }
-  .cap { font-size: 0.78rem; color: var(--muted); margin: 0.3rem 0 0; }
-  .key { font-family: ui-monospace, monospace; font-size: 0.75rem; word-break: break-all;
-    background: #0d0b14; border: 1px dashed var(--line); padding: 0.6rem; border-radius: 6px; }
-  .hex { font-family: ui-monospace, monospace; font-size: 0.72rem; color: var(--muted);
-    word-break: break-all; }
-  .err { color: #e07a7a; }
-  footer { margin-top: 2rem; color: #6d6584; font-size: 0.8rem; }
-  button.ghost { font-family: inherit; cursor: pointer; border: 1px solid var(--line);
-    border-radius: 8px; padding: 0.55rem 1.15rem; background: transparent; color: var(--ink); margin-left: 0.4rem; }
-  pre.apps { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.78rem;
-    color: var(--muted); background: #0d0b14; border: 1px solid var(--line); padding: 0.75rem; border-radius: 6px; }
-  label.inline { display: flex; align-items: center; gap: 0.45rem; margin-top: 0.75rem; color: var(--ink); }
+  html, body { margin: 0; max-width: 100%; overflow-x: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+  :focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px;
+  }
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1.25rem;
+    background: var(--bar);
+    border-bottom: 1px solid var(--line);
+  }
+  .name { font-weight: 650; letter-spacing: -0.01em; }
+  .where { color: var(--muted); font-size: 0.875rem; }
+  main {
+    width: min(38rem, 100%);
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3.5rem;
+  }
+  h1 {
+    font-size: 1.75rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin: 0 0 0.5rem;
+  }
+  .lead { margin: 0 0 1.25rem; font-size: 1.05rem; }
+  .status {
+    margin: 0 0 1.25rem;
+    padding: 0.85rem 1rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+  }
+  .actions { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+  button, summary, select, input[type="text"] { font: inherit; }
+  button {
+    min-height: 2.75rem;
+    padding: 0.55rem 1.05rem;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  button.primary {
+    background: var(--gold);
+    color: var(--gold-ink);
+    border: 1px solid transparent;
+    font-weight: 650;
+  }
+  button.ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  button:disabled { opacity: 0.55; cursor: not-allowed; }
+  .note { color: var(--muted); margin: 0.85rem 0 0; }
+  pre.out {
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 1rem 0 0;
+    padding: 0.85rem 1rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+  }
+  .err { color: var(--danger); margin: 1rem 0 0; }
+  details {
+    margin-top: 1.75rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+  }
+  summary {
+    cursor: pointer;
+    padding: 0.9rem 1rem;
+    font-weight: 650;
+  }
+  .panel { padding: 0 1rem 1.15rem; }
+  .panel h2 { font-size: 1rem; font-weight: 650; margin: 1.1rem 0 0.35rem; }
+  .help { color: var(--muted); margin: 0 0 0.75rem; }
+  label { display: block; margin: 0.75rem 0 0.3rem; font-size: 0.92rem; }
+  label.inline { display: flex; align-items: center; gap: 0.55rem; margin-top: 0.9rem; }
+  select, input[type="text"] {
+    width: 100%;
+    max-width: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.5rem 0.6rem;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-top: 0.9rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 0.75rem; margin-top: 0.85rem; }
+  canvas {
+    width: 100%;
+    height: auto;
+    background: #111;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .cap { color: var(--muted); font-size: 0.82rem; margin: 0.3rem 0 0; }
+  .key, .hex {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.78rem;
+    word-break: break-all;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+  }
+  footer { margin-top: 2rem; color: var(--muted); font-size: 0.85rem; }
+  @media (max-width: 480px) {
+    .bar { padding: 0.75rem 1rem; }
+    main { padding: 1.35rem 1rem 2.5rem; }
+    .actions, .row { flex-direction: column; }
+    .actions button, .row button { width: 100%; }
+    h1 { font-size: 1.5rem; }
+  }
 </style>
 </head>
 <body>
+<header class="bar">
+  <span class="name">VeilLock</span>
+  <span class="where">On this computer · 127.0.0.1</span>
+</header>
 <main>
-  <header>
-    <p class="mark">Aziel Eliab · September 2026</p>
-    <h1>VeilLock</h1>
-    <p class="motto">Consent-gated camera protection via AZ-OS.</p>
-    <span class="local">localhost · 127.0.0.1 · you control the veil</span>
-  </header>
-  <section class="card">
-    <h2>Seal synthetic frames</h2>
-    <p class="help">Generates a tiny RGB stack here, encrypts it, and shows ciphertext as noise against the decrypted preview. The session key is printed once and not stored.</p>
-    <label>Mode</label>
-    <select id="mode">
-      <option value="private">private</option>
-      <option value="broadcast">broadcast</option>
-      <option value="obfuscation">obfuscation</option>
-    </select>
-    <p style="margin-top:0.95rem"><button class="primary" id="go" type="button">Seal frames</button></p>
-  </section>
-  <section class="card" id="result" hidden>
-    <h2>Session</h2>
-    <p class="help" id="meta"></p>
-    <p class="key" id="key"></p>
-    <div class="grid" style="margin-top:1rem">
-      <div><canvas id="plain" width="64" height="48"></canvas><p class="cap">plaintext (synthetic)</p></div>
-      <div><canvas id="cipher" width="64" height="48"></canvas><p class="cap">ciphertext as pixels</p></div>
-      <div><canvas id="dec" width="64" height="48"></canvas><p class="cap">decrypted preview</p></div>
-      <div id="decoy-wrap" hidden><canvas id="decoy" width="64" height="48"></canvas><p class="cap">obfuscation decoy</p></div>
+  <h1>Your camera</h1>
+  <p class="lead">VeilLock keeps your camera veiled until you lift it.</p>
+  <p class="status" id="status" role="status">Stopped. Veil on — your camera stays protected.</p>
+  <div class="actions">
+    <button class="primary" id="start" type="button">Start camera veil</button>
+    <button class="ghost" id="doctor" type="button">Check this computer</button>
+  </div>
+  <p class="note">Author: Aziel Eliab</p>
+  <pre class="out" id="doctor-out" hidden></pre>
+  <p class="err" id="err" hidden role="alert"></p>
+
+  <details id="advanced">
+    <summary>Advanced</summary>
+    <div class="panel">
+      <h2>Tether</h2>
+      <p class="help">Send your camera, or this screen, through VeilLock. In the call app, choose the camera named VeilLock.</p>
+      <label for="tether-source">Source</label>
+      <select id="tether-source">
+        <option value="camera" selected>Camera</option>
+        <option value="screen">This screen</option>
+      </select>
+      <label for="tether-mode">Seal mode</label>
+      <select id="tether-mode">
+        <option value="obfuscation" selected>Obfuscation</option>
+        <option value="private">Private</option>
+        <option value="broadcast">Broadcast</option>
+      </select>
+
+      <h2>AZ-OS consent</h2>
+      <p class="help">You give consent by turning obfuscation off, or by accepting a call through AZ-OS. The veil returns when the call ends, unless you left obfuscation off.</p>
+      <label class="inline" for="obfuscation-on">
+        <input type="checkbox" id="obfuscation-on" checked>
+        Keep the veil on
+      </label>
+      <label for="azos-actor">Your name on the receipt</label>
+      <input id="azos-actor" type="text" value="user" autocomplete="name">
+      <div class="row">
+        <button class="ghost" id="azos-accept" type="button">Accept call through AZ-OS</button>
+        <button class="ghost" id="azos-end" type="button">End call</button>
+      </div>
+      <p class="help" id="azos-status"></p>
+
+      <h2>Sample frames</h2>
+      <p class="help">Seal a tiny picture made on this computer, then compare it with the sealed pixels and the opened preview. The session key is shown once.</p>
+      <label for="mode">Mode</label>
+      <select id="mode">
+        <option value="private">Private</option>
+        <option value="broadcast">Broadcast</option>
+        <option value="obfuscation">Obfuscation</option>
+      </select>
+      <div class="row">
+        <button class="ghost" id="go" type="button">Seal sample</button>
+      </div>
+      <div id="result" hidden>
+        <p class="help" id="meta"></p>
+        <p class="key" id="key"></p>
+        <div class="grid">
+          <div><canvas id="plain" width="64" height="48"></canvas><p class="cap">Sample</p></div>
+          <div><canvas id="cipher" width="64" height="48"></canvas><p class="cap">Sealed pixels</p></div>
+          <div><canvas id="dec" width="64" height="48"></canvas><p class="cap">Opened preview</p></div>
+          <div id="decoy-wrap" hidden><canvas id="decoy" width="64" height="48"></canvas><p class="cap">Obfuscation veil</p></div>
+        </div>
+        <p class="cap">Ciphertext hex (first 96 bytes)</p>
+        <p class="hex" id="hex"></p>
+      </div>
+
+      <h2>Call apps</h2>
+      <pre class="out" id="apps-help">__APPS__</pre>
+      <div class="row">
+        <button class="ghost" id="copy-apps" type="button">Copy app instructions</button>
+      </div>
+
+      <h2>About</h2>
+      <p class="help">VeilLock veils the camera on this computer until you lift it. You give consent through the AZ-OS hook above. Pulse must pass or the public feed stays veiled. Author: Aziel Eliab.</p>
+      <p class="help">Commands on this computer: <code>veillock doctor</code>, <code>veillock apps</code>, <code>veillock --help</code>.</p>
     </div>
-    <p class="cap">Ciphertext hex (first 96 bytes)</p>
-    <p class="hex" id="hex"></p>
-  </section>
-  <section class="card" id="tether">
-    <h2>Tether</h2>
-    <p class="help">Pipe <em>your</em> camera or video through VeilLock. The public feed is a natural privacy veil unless you turn obfuscation off or accept a call through AZ-OS. You control both paths. The call app chooses the virtual camera named <strong>VeilLock</strong>. iPhone FaceTime cannot select a third-party virtual camera (Apple).</p>
-    <label>Source</label>
-    <select id="tether-source">
-      <option value="camera" selected>camera / video (this device)</option>
-      <option value="screen">screen (this display)</option>
-    </select>
-    <label>Mode</label>
-    <select id="tether-mode">
-      <option value="obfuscation" selected>obfuscation (default veil)</option>
-      <option value="private">private</option>
-      <option value="broadcast">broadcast</option>
-    </select>
-    <p style="margin-top:0.95rem">
-      <button class="primary" id="tether-start" type="button">Start</button>
-      <button class="ghost" id="tether-stop" type="button">Stop</button>
-      <button class="ghost" id="copy-apps" type="button">Copy app instructions</button>
-    </p>
-    <p class="help" id="tether-status">Stopped. Camera and video are veiled by default.</p>
-    <h2>App instructions</h2>
-    <pre class="apps" id="apps-help">__APPS__</pre>
-  </section>
-  <section class="card" id="azos">
-    <h2>AZ-OS hook</h2>
-    <p class="help">The veil stays on unless you turn obfuscation off, or you accept a call through AZ-OS. That is your consent. Hosted AZ-OS halt is a token, not killing this computer.</p>
-    <label class="inline"><input type="checkbox" id="obfuscation-on" checked> Obfuscation on (default). Uncheck to lift the veil.</label>
-    <label>Actor (you)</label>
-    <input id="azos-actor" type="text" value="user" style="width:100%;background:#0d0b14;color:var(--ink);border:1px solid var(--line);padding:0.45rem 0.55rem;border-radius:6px;">
-    <p style="margin-top:0.95rem">
-      <button class="primary" id="azos-accept" type="button">Accept call through AZ-OS</button>
-      <button class="ghost" id="azos-end" type="button">End call (re-veil)</button>
-    </p>
-    <p class="help" id="azos-status">Veil on — camera and video protected.</p>
-  </section>
-  <p class="err" id="err" hidden></p>
-  <footer>VeilLock __VERSION__ · AZ-OS hook · you control the veil · Apache-2.0 · <code>veillock ui</code></footer>
+  </details>
+  <footer>VeilLock __VERSION__ · Aziel Eliab</footer>
 </main>
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
+  function showError(text) {
+    $("err").hidden = false;
+    $("err").textContent = text;
+  }
+  function clearError() { $("err").hidden = true; $("err").textContent = ""; }
+  function plain(data) {
+    const running = data.running ? "Running. " : "Stopped. ";
+    let veil = "Veil on — your camera stays protected.";
+    const reason = data.reason || "";
+    if (data.veil === "lifted") {
+      veil = reason.indexOf("obfuscation off") !== -1
+        ? "Veil lifted — you turned obfuscation off."
+        : "Veil lifted — you accepted a call through AZ-OS.";
+    }
+    return running + veil;
+  }
+  function applyStatus(data) {
+    $("status").textContent = plain(data);
+    $("start").textContent = data.running ? "Stop camera veil" : "Start camera veil";
+    $("start").dataset.running = data.running ? "1" : "0";
+    if (typeof data.obfuscation_on === "boolean") {
+      $("obfuscation-on").checked = data.obfuscation_on;
+    }
+    if (data.veil) {
+      $("azos-status").textContent = plain(data);
+    }
+  }
+  async function refresh() {
+    try {
+      const res = await fetch("/api/azos");
+      applyStatus(await res.json());
+    } catch (e) { /* local only */ }
+  }
   function draw(canvas, b64, w, h) {
     const raw = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext("2d");
     const img = ctx.createImageData(w, h);
-    let n = w * h;
+    const n = w * h;
     for (let i = 0, j = 0; i < n; i++) {
-      img.data[j++] = raw[i*3] || 0;
-      img.data[j++] = raw[i*3+1] || 0;
-      img.data[j++] = raw[i*3+2] || 0;
+      img.data[j++] = raw[i * 3] || 0;
+      img.data[j++] = raw[i * 3 + 1] || 0;
+      img.data[j++] = raw[i * 3 + 2] || 0;
       img.data[j++] = 255;
     }
     ctx.putImageData(img, 0, 0);
   }
+  $("start").onclick = async () => {
+    clearError();
+    $("start").disabled = true;
+    try {
+      if ($("start").dataset.running === "1") {
+        const res = await fetch("/api/tether/stop", {method: "POST"});
+        const data = await res.json();
+        applyStatus(data);
+        return;
+      }
+      const res = await fetch("/api/tether/start", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          source: $("tether-source").value,
+          mode: $("tether-mode").value,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) {
+        const reason = data.error || ("HTTP " + res.status);
+        const next = /pip install/.test(reason)
+          ? "Then press Start camera veil again."
+          : "Try: veillock doctor";
+        showError(reason + " " + next);
+        $("status").textContent = "Stopped. The camera veil did not start.";
+        return;
+      }
+      applyStatus(data);
+    } catch (e) {
+      showError(String(e.message || e) + " Try: veillock ui");
+    } finally {
+      $("start").disabled = false;
+    }
+  };
+  $("doctor").onclick = async () => {
+    clearError();
+    $("doctor").disabled = true;
+    try {
+      const res = await fetch("/api/doctor");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+      const lines = (data.checks || []).map((c) => (c.ok ? "pass  " : "FAIL  ") + c.id);
+      lines.push(data.ok ? "doctor: healthy" : "doctor: FAILED");
+      if (!data.ok) lines.push("Next: veillock doctor --json");
+      $("doctor-out").hidden = false;
+      $("doctor-out").textContent = lines.join("\n");
+    } catch (e) {
+      showError(String(e.message || e) + " Try: veillock doctor");
+    } finally {
+      $("doctor").disabled = false;
+    }
+  };
   $("go").onclick = async () => {
-    $("err").hidden = true;
+    clearError();
     $("go").disabled = true;
     try {
       const res = await fetch("/api/demo", {
@@ -171,10 +391,10 @@ PAGE = r"""<!DOCTYPE html>
       if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
       $("result").hidden = false;
       const w = data.width, h = data.height;
-      $("meta").textContent = data.frames + " frames · " + w + "×" + h + " · mode " + data.mode
-        + " · ciphertext looks like noise; decrypt matches the synthetic source.";
-      let key = "session_key (shown once)\\n" + data.session_key;
-      if (data.receiver_secret) key += "\\nreceiver_secret (shown once)\\n" + data.receiver_secret;
+      $("meta").textContent = data.frames + " frames · " + w + "×" + h + " · " + data.mode
+        + ". The sealed pixels look like noise. The opened preview matches the sample.";
+      let key = "session_key (shown once)\n" + data.session_key;
+      if (data.receiver_secret) key += "\nreceiver_secret (shown once)\n" + data.receiver_secret;
       $("key").textContent = key;
       draw($("plain"), data.plain_b64, w, h);
       draw($("cipher"), data.cipher_b64, w, h);
@@ -182,53 +402,18 @@ PAGE = r"""<!DOCTYPE html>
       if (data.decoy_b64) {
         $("decoy-wrap").hidden = false;
         draw($("decoy"), data.decoy_b64, w, h);
-      } else { $("decoy-wrap").hidden = true; }
+      } else {
+        $("decoy-wrap").hidden = true;
+      }
       $("hex").textContent = data.cipher_hex;
     } catch (e) {
-      $("err").hidden = false;
-      $("err").textContent = String(e.message || e);
-    } finally { $("go").disabled = false; }
-  };
-  $("tether-start").onclick = async () => {
-    $("err").hidden = true;
-    $("tether-start").disabled = true;
-    try {
-      const res = await fetch("/api/tether/start", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-          source: $("tether-source").value,
-          mode: $("tether-mode").value,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.ok === false) throw new Error(data.error || ("HTTP " + res.status));
-      $("tether-status").textContent = "Running. Camera veiled unless you lifted it.";
-    } catch (e) {
-      $("err").hidden = false;
-      $("err").textContent = String(e.message || e);
-      $("tether-status").textContent = "Start failed.";
-    } finally { $("tether-start").disabled = false; }
-  };
-  $("tether-stop").onclick = async () => {
-    try {
-      await fetch("/api/tether/stop", {method: "POST"});
-      $("tether-status").textContent = "Stopped.";
-    } catch (e) {
-      $("err").hidden = false;
-      $("err").textContent = String(e.message || e);
+      showError(String(e.message || e) + " Try: Seal sample again.");
+    } finally {
+      $("go").disabled = false;
     }
   };
-  async function refreshAzos() {
-    try {
-      const res = await fetch("/api/azos");
-      const data = await res.json();
-      $("obfuscation-on").checked = data.obfuscation_on !== false;
-      const veil = data.veil === "lifted" ? "lifted" : "on";
-      $("azos-status").textContent = "Veil " + veil + " — " + (data.reason || "");
-    } catch (e) { /* local only */ }
-  }
   $("obfuscation-on").onchange = async () => {
+    clearError();
     try {
       const res = await fetch("/api/azos/obfuscation", {
         method: "POST",
@@ -236,14 +421,14 @@ PAGE = r"""<!DOCTYPE html>
         body: JSON.stringify({on: $("obfuscation-on").checked}),
       });
       const data = await res.json();
-      $("azos-status").textContent = "Veil " + (data.veil || "") + " — " + (data.reason || "");
+      if (!res.ok || data.ok === false) throw new Error(data.error || ("HTTP " + res.status));
+      applyStatus(data);
     } catch (e) {
-      $("err").hidden = false;
-      $("err").textContent = String(e.message || e);
+      showError(String(e.message || e) + " Try: veillock azos");
     }
   };
   $("azos-accept").onclick = async () => {
-    $("err").hidden = true;
+    clearError();
     try {
       const res = await fetch("/api/azos/accept", {
         method: "POST",
@@ -251,34 +436,33 @@ PAGE = r"""<!DOCTYPE html>
         body: JSON.stringify({actor: $("azos-actor").value || "user"}),
       });
       const data = await res.json();
-      $("azos-status").textContent = "Veil " + (data.veil || "lifted") + " — " + (data.reason || "you accepted a call through AZ-OS");
-      $("tether-status").textContent = "AZ-OS call accepted. Veil lifted for this session.";
+      if (!res.ok || data.ok === false) throw new Error(data.error || ("HTTP " + res.status));
+      applyStatus(data);
     } catch (e) {
-      $("err").hidden = false;
-      $("err").textContent = String(e.message || e);
+      showError(String(e.message || e) + " Try: veillock azos --accept --actor \"your name\"");
     }
   };
   $("azos-end").onclick = async () => {
+    clearError();
     try {
       const res = await fetch("/api/azos/end", {method: "POST"});
       const data = await res.json();
-      $("azos-status").textContent = "Veil " + (data.veil || "on") + " — " + (data.reason || "call ended");
-      $("tether-status").textContent = "Call ended. Veil restored unless you turned obfuscation off.";
+      if (!res.ok || data.ok === false) throw new Error(data.error || ("HTTP " + res.status));
+      applyStatus(data);
     } catch (e) {
-      $("err").hidden = false;
-      $("err").textContent = String(e.message || e);
+      showError(String(e.message || e) + " Try: veillock azos --end");
     }
   };
-  refreshAzos();
   $("copy-apps").onclick = async () => {
     const text = $("apps-help").textContent;
     try {
       await navigator.clipboard.writeText(text);
-      $("tether-status").textContent = "App instructions copied.";
+      $("status").textContent = "App instructions copied.";
     } catch (e) {
-      $("tether-status").textContent = "Copy failed — select the instructions and copy manually.";
+      $("status").textContent = "Select the instructions and copy them.";
     }
   };
+  refresh();
 })();
 </script>
 </body>
@@ -311,9 +495,28 @@ def _cipher_as_rgb(ciphertext: bytes, h: int, w: int) -> np.ndarray:
     return np.frombuffer(buf, dtype=np.uint8).reshape(h, w, 3).copy()
 
 
+def _health() -> dict[str, Any]:
+    return {
+        "ok": True,
+        "bind_host": DEFAULT_HOST,
+        "name": "VeilLock",
+        "identity": "consent-gated camera protection via AZ-OS",
+        "azos_hook": True,
+    }
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: object) -> None:
         sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
+
+    def _wants_json(self) -> bool:
+        accept = (self.headers.get("Accept") or "").lower()
+        if not accept or accept.strip() in ("*/*", ""):
+            return False
+        parts = [p.split(";", 1)[0].strip() for p in accept.split(",")]
+        if "text/html" in parts or "application/xhtml+xml" in parts:
+            return False
+        return "application/json" in parts
 
     def _send(self, code: int, body: bytes, content_type: str) -> None:
         self.send_response(code)
@@ -329,19 +532,18 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
         if path in ("/", "/index.html"):
+            if self._wants_json():
+                self._json(200, _health())
+                return
             self._send(200, PAGE.encode("utf-8"), "text/html; charset=utf-8")
             return
         if path == "/health":
-            self._json(
-                200,
-                {
-                    "ok": True,
-                    "bind_host": DEFAULT_HOST,
-                    "name": "VeilLock",
-                    "identity": "consent-gated camera protection via AZ-OS",
-                    "azos_hook": True,
-                },
-            )
+            self._json(200, _health())
+            return
+        if path == "/api/doctor":
+            from veillock.doctor import run as doctor_run
+
+            self._json(200, doctor_run())
             return
         if path == "/api/apps":
             self._send(200, APPS_GUIDE.encode("utf-8"), "text/plain; charset=utf-8")
@@ -464,8 +666,7 @@ def make_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> Threading
 
 def serve(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
     httpd = make_server(host, port)
-    sys.stdout.write(f"VeilLock UI  http://{host}:{port}/\n")
-    sys.stdout.write("Local only. Consent-gated camera protection via AZ-OS. You control the veil.\n")
+    sys.stdout.write(f"Open http://{host}:{port}/\n")
     sys.stdout.flush()
     try:
         httpd.serve_forever()
