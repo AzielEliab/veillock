@@ -18,7 +18,7 @@ from typing import Any, Iterator, TextIO
 import numpy as np
 
 from veillock.azos import AzosHook
-from veillock.engine import VeilLockSession
+from veillock.engine import EncryptedFrame, VeilLockSession
 from veillock.modes import Mode, public_veil, synthetic_ui_noise
 from veillock.pulse import AlwaysPass, HaltedError, PhoenixError, PulseCheck
 from veillock.sources import (
@@ -42,6 +42,19 @@ Your camera or screen. The public feed is a natural privacy veil unless
 you turn obfuscation off, or you accept a call through AZ-OS. You control
 both paths.
 
+What is encrypted, and what is only obfuscated
+----------------------------------------------
+Live call video is a keyed visual scramble (shuffled 8×8 tiles) once you
+lift the veil for a protected call (`veillock wrap --feed scramble`).
+An authorized peer can approximately reverse it. It is not AES-256-GCM.
+The call provider sees the veil or the tiles.
+Live call audio is a comfort-noise veil by default, or an optional PCM
+block permutation. Opus and AAC do not carry sample ciphertext. That
+path is not AES-256-GCM. Short blocks can still contain speech fragments.
+VeilLock's own file (`veillock record` / `veillock play`) is AES-256-GCM
+per frame and per audio chunk, with key rotation and PulseCheck.
+PulseCheck failure halts to veil or noise. Plaintext is not sent.
+
 Install the optional extra, then start the tether:
 
   pip install 'veillock[tether]'
@@ -60,29 +73,93 @@ Linux (v4l2loopback), once per boot if the VeilLock device is missing:
 
   sudo modprobe v4l2loopback devices=1 video_nr=10 card_label=VeilLock exclusive_caps=1
 
+Microphone — the name the call app actually shows
+  Linux: VeilLock Microphone.
+    `veillock wrap --mic` or `veillock mic start` loads module-null-sink
+    and module-remap-source through pactl, and paplay feeds the sink.
+    Stop unloads both modules. This needs pipewire-pulse or PulseAudio.
+    VeilLock creates that source. It is not a kernel driver.
+  macOS: BlackHole 2ch, and only if BlackHole is already installed.
+    No CoreAudio HAL plugin is shipped. The selectable name is not VeilLock.
+    sox or ffmpeg feeds BlackHole.
+  Windows: CABLE Output, and only if VB-Audio Virtual Cable is installed.
+    No kernel driver is shipped. VeilLock writes to CABLE Input. The
+    selectable microphone is CABLE Output, not VeilLock.
+  Default public audio is comfort noise. It becomes the real microphone
+  only after you lift the veil, or a PCM scramble if you passed
+  `--audio-feed scramble`. That call audio is not AES-256-GCM. The real
+  microphone can still be sealed into the `.veilrec` file at the same time.
+
 Zoom (desktop)
   Settings → Video → Camera → VeilLock
+  Settings → Audio → Microphone → the name in the Microphone section
 
 Skype (desktop)
   Settings → Audio & Video → Camera → VeilLock
+  Settings → Audio & Video → Microphone → the name in the Microphone section
 
 FaceTime (Mac)
   Video menu → VeilLock
+  Microphone menu → BlackHole 2ch, if BlackHole is installed
   Desktop FaceTime can select a third-party virtual camera.
-  iPhone FaceTime cannot select a third-party virtual camera (Apple).
+  iPhone FaceTime cannot select a third-party virtual camera or microphone.
 
 Google Meet (desktop browser)
   Meeting → More → Settings → Video → Camera → VeilLock
-  Allow the browser to use the VeilLock device.
+  Settings → Audio → Microphone → the name in the Microphone section
+  Allow the browser to use those devices.
 
 Microsoft Teams (desktop)
   Settings → Devices → Camera → VeilLock
+  Settings → Devices → Microphone → the name in the Microphone section
+
+Discord (desktop app or browser)
+  User Settings → Voice & Video → Camera → VeilLock
+  Input Device → the name in the Microphone section
+  Browser Discord uses the same site permission prompt as other WebRTC calls.
+
+WhatsApp (desktop)
+  Call screen → camera menu → VeilLock, when the desktop app offers a
+  camera picker. Microphone → the name in the Microphone section.
+  WhatsApp on a phone cannot select a third-party camera or microphone.
+
+Signal (desktop)
+  Call device menu → Camera → VeilLock, when the desktop app offers it.
+  Microphone → the name in the Microphone section.
+  Signal on a phone cannot select a third-party camera or microphone.
+
+OBS
+  Sources → Video Capture Device → VeilLock
+  Audio Input Capture → the name in the Microphone section
+  An OBS recording of that source stores the veil or the scramble.
+  It is not the AES-256-GCM file from `veillock record`.
+
+Browser WebRTC (Meet, Discord, and other sites)
+  Site permission → Camera → VeilLock
+  Site permission → Microphone → the name in the Microphone section
+
+iPhone FaceTime cannot select a third-party camera or microphone.
 
 Android / iOS
   iPhone FaceTime, Zoom iOS, and most mobile clients cannot select a
   third-party virtual camera. Use the desktop app (Mac FaceTime / Zoom /
   Skype / Meet / Teams).
 """
+
+from veillock.coverage import coverage_guide_text
+from veillock.engulf import engulf_guide_text
+from veillock.honesty import EXPORT_LEAVES, LOCAL_RECORDING
+
+APPS_GUIDE = (
+    APPS_GUIDE
+    + engulf_guide_text()
+    + coverage_guide_text()
+    + "\nRecordings stay inside VeilLock\n------------------------------\n"
+    + LOCAL_RECORDING
+    + "\n"
+    + EXPORT_LEAVES
+    + "\n"
+)
 
 
 def _require_pyvirtualcam():
@@ -173,6 +250,8 @@ class TetherConfig:
     rotation_interval: int = 120
     max_frames: int | None = None
     rng: np.random.Generator | None = None
+    feed: str = "auto"
+    scramble_key: bytes | None = None
     azos: AzosHook = field(default_factory=AzosHook)
 
     def apply_consent(self) -> AzosHook:
@@ -184,6 +263,93 @@ class TetherConfig:
         return hook
 
 
+@dataclass
+class PublicFrame:
+    """Pixels the call app will encode, plus the AES frame if sealing succeeded."""
+
+    pixels: np.ndarray
+    label: str
+    sealed: EncryptedFrame | None
+
+
+def _veiled_public(
+    session: VeilLockSession,
+    sealed: EncryptedFrame,
+    src: np.ndarray,
+    noise_rng: np.random.Generator,
+    source: str,
+    tick: int,
+) -> np.ndarray:
+    if str(source).strip().lower() in ("camera", "video"):
+        return public_veil(src, noise_rng, source=source, tick=tick)
+    if session.mode is Mode.OBFUSCATION and sealed.decoy is not None:
+        return np.ascontiguousarray(sealed.decoy, dtype=np.uint8)
+    h, w, c = int(src.shape[0]), int(src.shape[1]), int(src.shape[2])
+    return synthetic_ui_noise((h, w, c), noise_rng)
+
+
+def compose_call_frame(
+    session: VeilLockSession,
+    frame: np.ndarray,
+    *,
+    trusted: bool = False,
+    rng: np.random.Generator | None = None,
+    hook: AzosHook | None = None,
+    source: str = DEFAULT_SOURCE,
+    tick: int = 0,
+    feed: str = "auto",
+    scramble_key: bytes | None = None,
+    epoch: int = 0,
+) -> PublicFrame:
+    """Choose the public pixels. Pulse halt returns a veil and no sealed frame.
+
+    ``feed``:
+    - ``auto`` — veil until you lift it, then the trusted decode (existing tether)
+    - ``veil`` — natural veil even after a lift
+    - ``scramble`` — after a lift, keyed visual scramble (not AES-256-GCM)
+    - ``plaintext`` — after a lift, the camera
+    """
+    from veillock.scramble import scramble_frame
+
+    src = np.ascontiguousarray(frame, dtype=np.uint8)
+    if src.ndim != 3 or src.shape[-1] != 3:
+        raise ValueError("frame must have shape (H, W, 3) uint8")
+    noise_rng = rng if rng is not None else np.random.default_rng()
+    gate = hook if hook is not None else AzosHook()
+    if trusted:
+        gate.set_obfuscation(False)
+    feed_name = str(feed or "auto").strip().lower()
+    if feed_name not in ("auto", "veil", "scramble", "plaintext"):
+        raise ValueError("feed must be auto, veil, scramble, or plaintext")
+    try:
+        sealed, display = session.protect_frame(src)
+    except (HaltedError, PhoenixError):
+        return PublicFrame(
+            pixels=public_veil(src, noise_rng, source=source, tick=tick),
+            label="pulse-halt",
+            sealed=None,
+        )
+    if feed_name == "veil" or gate.veil_on():
+        return PublicFrame(
+            pixels=_veiled_public(session, sealed, src, noise_rng, source, tick),
+            label="veil",
+            sealed=sealed,
+        )
+    if feed_name == "scramble":
+        if scramble_key is None or len(bytes(scramble_key)) != 32:
+            raise ValueError("scramble feed requires a 32-byte key")
+        return PublicFrame(
+            pixels=scramble_frame(np.ascontiguousarray(display, dtype=np.uint8), bytes(scramble_key), epoch),
+            label="scramble",
+            sealed=sealed,
+        )
+    return PublicFrame(
+        pixels=np.ascontiguousarray(display, dtype=np.uint8),
+        label="plaintext",
+        sealed=sealed,
+    )
+
+
 def emit_public_frame(
     session: VeilLockSession,
     frame: np.ndarray,
@@ -193,32 +359,29 @@ def emit_public_frame(
     hook: AzosHook | None = None,
     source: str = DEFAULT_SOURCE,
     tick: int = 0,
+    feed: str = "auto",
+    scramble_key: bytes | None = None,
+    epoch: int = 0,
 ) -> np.ndarray:
     """Encrypt a caller-owned frame and choose pixels for the virtual camera.
 
     Default public feed is a natural camera/video veil. The veil lifts
     when the user turns obfuscation off, accepts a call through AZ-OS,
     or passes ``trusted``. Pulse halt / Phoenix → veil, never plaintext.
+    ``feed="scramble"`` lifts to a keyed visual scramble, not AES-256-GCM.
     """
-    src = np.ascontiguousarray(frame, dtype=np.uint8)
-    if src.ndim != 3 or src.shape[-1] != 3:
-        raise ValueError("frame must have shape (H, W, 3) uint8")
-    h, w, c = int(src.shape[0]), int(src.shape[1]), int(src.shape[2])
-    noise_rng = rng if rng is not None else np.random.default_rng()
-    gate = hook if hook is not None else AzosHook()
-    if trusted:
-        gate.set_obfuscation(False)
-    try:
-        sealed, display = session.protect_frame(src)
-    except (HaltedError, PhoenixError):
-        return public_veil(src, noise_rng, source=source, tick=tick)
-    if not gate.veil_on():
-        return np.ascontiguousarray(display, dtype=np.uint8)
-    if str(source).strip().lower() in ("camera", "video"):
-        return public_veil(src, noise_rng, source=source, tick=tick)
-    if session.mode is Mode.OBFUSCATION and sealed.decoy is not None:
-        return np.ascontiguousarray(sealed.decoy, dtype=np.uint8)
-    return synthetic_ui_noise((h, w, c), noise_rng)
+    return compose_call_frame(
+        session,
+        frame,
+        trusted=trusted,
+        rng=rng,
+        hook=hook,
+        source=source,
+        tick=tick,
+        feed=feed,
+        scramble_key=scramble_key,
+        epoch=epoch,
+    ).pixels
 
 
 def halt_noise(width: int, height: int, rng: np.random.Generator | None = None) -> np.ndarray:
@@ -313,6 +476,8 @@ def run_tether(
             except HaltedError:
                 public = halt_noise(width, height, rng)
             else:
+                frame = resize_rgb(frame, width, height)
+                scramble_key = cfg.scramble_key if cfg.scramble_key is not None else cfg.session_key
                 public = emit_public_frame(
                     session,
                     frame,
@@ -321,8 +486,12 @@ def run_tether(
                     hook=hook,
                     source=cfg.source,
                     tick=sent,
+                    feed=cfg.feed,
+                    scramble_key=scramble_key,
+                    epoch=sent // int(cfg.rotation_interval),
                 )
-                public = resize_rgb(public, width, height)
+                if str(cfg.feed) != "scramble":
+                    public = resize_rgb(public, width, height)
             send = getattr(cam, "send", None)
             if send is None:
                 raise RuntimeError("virtual camera has no send()")

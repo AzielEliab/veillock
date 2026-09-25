@@ -14,6 +14,7 @@ import numpy as np
 
 from veillock import __version__
 from veillock.engine import VeilLockSession
+from veillock.honesty import CALL_AUDIO, CALL_VIDEO, E2E, ENGULF, LOCAL_RECORDING, PLATFORM, PULSE
 from veillock.modes import Mode
 from veillock.tether import APPS_GUIDE, RUNTIME, TetherConfig
 
@@ -271,6 +272,73 @@ PAGE = r"""<!DOCTYPE html>
       <h2>About</h2>
       <p class="help">VeilLock veils the camera on this computer until you lift it. You give consent through the AZ-OS hook above. Pulse must pass or the public feed stays veiled. Author: Aziel Eliab.</p>
       <p class="help">Commands on this computer: <code>veillock doctor</code>, <code>veillock apps</code>, <code>veillock --help</code>.</p>
+
+      <h2>Wrap any call</h2>
+      <p class="help" id="wrap-honesty">__HONESTY__</p>
+      <p class="help">Preview uses a synthetic frame, a JPEG-like recompression, and the real key check. Numbers below are computed for this preview. The call path is a scramble. Record / play on this page seals video and audio with AES-256-GCM and decrypts in memory. No plaintext file is written. Someone can still point a screen recorder at this window.</p>
+      <div class="row">
+        <button class="primary" id="wrap-preview" type="button">Preview scramble</button>
+        <button class="ghost" id="wrap-record" type="button">Seal and play in memory</button>
+        <button class="ghost" id="mic-start" type="button">Start microphone</button>
+        <button class="ghost" id="mic-stop" type="button">Stop microphone</button>
+      </div>
+      <label class="inline" for="mic-scramble"><input id="mic-scramble" type="checkbox" /> When the veil is lifted, send a PCM scramble instead of the microphone</label>
+      <p class="help" id="mic-status">Microphone idle. Linux creates VeilLock Microphone. macOS feeds BlackHole 2ch only if BlackHole is installed. Windows feeds CABLE Input only if VB-Audio Virtual Cable is installed; the app selects CABLE Output. Call audio is not AES-256-GCM.</p>
+      <p class="help" id="wrap-status">Idle. Default public feed is the veil until you lift it.</p>
+      <div class="grid" id="wrap-grid" hidden>
+        <div><canvas id="wrap-src" width="64" height="64"></canvas><p class="cap">synthetic camera</p></div>
+        <div><canvas id="wrap-call" width="64" height="64"></canvas><p class="cap">what the call provider sees</p></div>
+        <div><canvas id="wrap-peer" width="64" height="64"></canvas><p class="cap">peer with the key, after codec</p></div>
+        <div><canvas id="wrap-nokey" width="64" height="64"></canvas><p class="cap">without the key</p></div>
+      </div>
+      <p class="cap" id="wrap-metrics"></p>
+      <p class="key" id="wrap-key" hidden></p>
+
+      <h2>Encrypted link</h2>
+      <p class="help">This seals one synthetic encoded frame with AES-256-GCM and shows what a relay would see. The call app is not this channel. The scramble remains obfuscation for someone without VeilLock.</p>
+      <div class="row">
+        <button class="primary" id="e2e-demo" type="button">Seal an encoded frame</button>
+      </div>
+      <p class="help" id="e2e-status">Idle. Both ends need the key. A wrong key fails closed.</p>
+
+      <h2>Join a link</h2>
+      <p class="help">Plans the same report as <code>veillock join</code>. This desk does not join the call, register a camera, or launch an app. A gallery is one outgoing veil or scramble, not an AES mesh.</p>
+      <label for="join-url">Meeting URL</label>
+      <input id="join-url" type="text" value="https://teams.microsoft.com/l/meetup-join/example">
+      <label for="join-platform">Platform</label>
+      <select id="join-platform">
+        <option value="chromium" selected>chromium</option>
+        <option value="firefox">firefox</option>
+        <option value="safari">safari</option>
+        <option value="linux">linux</option>
+        <option value="windows">windows</option>
+        <option value="darwin">darwin</option>
+        <option value="ios">ios</option>
+      </select>
+      <div class="row">
+        <button class="primary" id="join-plan" type="button">Plan this link</button>
+      </div>
+      <pre class="out" id="join-report">Idle. Nothing is joined.</pre>
+
+      <h2>Engulf plan</h2>
+      <p class="help">Asks the engulf adapter only. The desk does not launch the app and does not register a camera. Windows without the local helper does not hook.</p>
+      <label for="engulf-app">App</label>
+      <input id="engulf-app" type="text" value="zoom">
+      <label for="engulf-platform">Platform</label>
+      <select id="engulf-platform">
+        <option value="linux">linux</option>
+        <option value="windows" selected>windows</option>
+        <option value="darwin">darwin</option>
+        <option value="ios">ios</option>
+      </select>
+      <div class="row">
+        <button class="primary" id="engulf-plan-btn" type="button">Plan engulf</button>
+      </div>
+      <pre class="out" id="engulf-report">Idle. Nothing is launched.</pre>
+
+      <h2>aziel-runtime</h2>
+      <p class="help">The human UI is aziel-runtime. This desk is the local VeilLock surface that UI can open. The public door lists no ops for this slug. Consent stays the AZ-OS fields. The public ACT-RECEIPT chain is not written here.</p>
+      <pre class="out" id="suite-status">Loading the contract.</pre>
     </div>
   </details>
   <footer>VeilLock __VERSION__ · Aziel Eliab</footer>
@@ -453,6 +521,149 @@ PAGE = r"""<!DOCTYPE html>
       showError(String(e.message || e) + " Try: veillock azos --end");
     }
   };
+  async function refreshMic() {
+    try {
+      const res = await fetch("/api/mic");
+      const data = await res.json();
+      const name = data.selectable_name || "unavailable";
+      $("mic-status").textContent = "Mic " + (data.running ? "running" : "stopped")
+        + " · " + (data.platform || "")
+        + " · " + name
+        + " · created by VeilLock: " + (data.created_by_veillock ? "yes" : "no")
+        + " · call audio AES-256-GCM: no. "
+        + (data.note || data.error || "");
+    } catch (e) { /* status line keeps the static honesty text */ }
+  }
+  $("mic-start").onclick = async () => {
+    $("err").hidden = true;
+    try {
+      const res = await fetch("/api/mic/start", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({scramble: $("mic-scramble").checked})});
+      const data = await res.json();
+      if (!res.ok || data.ok === false) throw new Error(data.error || data.note || ("HTTP " + res.status));
+      await refreshMic();
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+      await refreshMic();
+    }
+  };
+  $("mic-stop").onclick = async () => {
+    try {
+      await fetch("/api/mic/stop", {method: "POST"});
+      await refreshMic();
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    }
+  };
+  refreshMic();
+  $("e2e-demo").onclick = async () => {
+    $("err").hidden = true;
+    try {
+      const res = await fetch("/api/e2e/demo", {method: "POST", headers: {"Content-Type": "application/json"}, body: "{}"});
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+      $("e2e-status").textContent = data.note;
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    }
+  };
+  $("wrap-preview").onclick = async () => {
+    $("err").hidden = true;
+    $("wrap-preview").disabled = true;
+    try {
+      const res = await fetch("/api/wrap/preview", {method: "POST", headers: {"Content-Type": "application/json"}, body: "{}"});
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+      $("wrap-grid").hidden = false;
+      const w = data.width, h = data.height;
+      draw($("wrap-src"), data.source_b64, w, h);
+      draw($("wrap-call"), data.call_b64, w, h);
+      draw($("wrap-peer"), data.peer_b64, w, h);
+      draw($("wrap-nokey"), data.denied_b64, w, h);
+      $("wrap-key").hidden = false;
+      $("wrap-key").textContent = "call key (shown once)\\n" + data.session_key
+        + "\\nCall path: scramble, not AES-256-GCM. Local recording of the same key would be AES-256-GCM.";
+      $("wrap-metrics").textContent = "After JPEG-like q=" + data.quality
+        + ": with key correlation " + data.with_key.correlation + ", MAE " + data.with_key.mae
+        + ". Without key: " + data.without_key.kind + ", correlation " + data.without_key.correlation
+        + ". Provider vs camera correlation " + data.provider.correlation + ".";
+      $("wrap-status").textContent = data.note;
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    } finally { $("wrap-preview").disabled = false; }
+  };
+  $("wrap-record").onclick = async () => {
+    $("err").hidden = true;
+    $("wrap-record").disabled = true;
+    try {
+      const res = await fetch("/api/record/demo", {method: "POST", headers: {"Content-Type": "application/json"}, body: "{}"});
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+      $("wrap-key").hidden = false;
+      $("wrap-key").textContent = "recording key (shown once)\\n" + data.session_key
+        + "\\n" + data.note;
+      $("wrap-status").textContent = "AES-256-GCM recording stayed encrypted on disk. Playback matched in memory=" + data.match + ". A screen recorder pointed at this window can still see the picture."
+        + " frames=" + data.frames + ". This file is encryption. It is not the call scramble.";
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    } finally { $("wrap-record").disabled = false; }
+  };
+  $("join-plan").onclick = async () => {
+    $("err").hidden = true;
+    try {
+      const res = await fetch("/api/join", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({url: $("join-url").value, platform: $("join-platform").value}),
+      });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) throw new Error(data.error || ("HTTP " + res.status));
+      $("join-report").textContent = data.report
+        + "\\njoined_call=" + data.joined_call
+        + "\\naes_on_call_path=" + data.aes_on_call_path
+        + "\\ncamera=" + data.camera;
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    }
+  };
+  $("engulf-plan-btn").onclick = async () => {
+    $("err").hidden = true;
+    try {
+      const res = await fetch("/api/engulf/plan", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({app: $("engulf-app").value, platform: $("engulf-platform").value}),
+      });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) throw new Error(data.error || ("HTTP " + res.status));
+      $("engulf-report").textContent = (data.note || "")
+        + "\\nengulfs=" + data.engulfs
+        + "\\nexecuted=" + data.executed
+        + "\\nregistered_camera=" + data.registered_camera
+        + "\\naes_on_call_path=" + data.aes_on_call_path;
+    } catch (e) {
+      $("err").hidden = false;
+      $("err").textContent = String(e.message || e);
+    }
+  };
+  async function refreshSuite() {
+    try {
+      const res = await fetch("/api/suite");
+      const data = await res.json();
+      const receipts = data.receipts || {};
+      $("suite-status").textContent = (data.schema || "")
+        + " · human_ui=" + data.human_ui
+        + " · local_only=" + data.local_only
+        + " · writes_public_chain=" + receipts.writes_public_chain
+        + "\\n" + (data.handoff || "");
+    } catch (e) { /* the static line stays if the tile cannot be read */ }
+  }
+  refreshSuite();
   $("copy-apps").onclick = async () => {
     const text = $("apps-help").textContent;
     try {
@@ -470,6 +681,10 @@ PAGE = r"""<!DOCTYPE html>
 """.replace("__VERSION__", __version__)
 
 PAGE = PAGE.replace("__APPS__", APPS_GUIDE)
+PAGE = PAGE.replace(
+    "__HONESTY__",
+    " ".join([CALL_VIDEO, CALL_AUDIO, LOCAL_RECORDING, PULSE, PLATFORM, E2E, ENGULF]),
+)
 
 
 def _rgb_b64(frame: np.ndarray) -> str:
@@ -554,6 +769,21 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/azos":
             self._json(200, RUNTIME.status())
             return
+        if path == "/api/mic":
+            from veillock.mic import MIC_RUNTIME
+
+            self._json(200, MIC_RUNTIME.status())
+            return
+        if path == "/api/suite":
+            from veillock.surfaces import runtime_ui
+
+            self._json(200, runtime_ui())
+            return
+        if path == "/api/status":
+            from veillock.surfaces import status_report
+
+            self._json(200, status_report())
+            return
         self._json(404, {"error": "not found"})
 
     def do_POST(self) -> None:  # noqa: N802
@@ -591,6 +821,36 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, RUNTIME.set_obfuscation(bool(on)))
             except Exception as exc:  # noqa: BLE001
                 self._json(400, {"ok": False, "error": str(exc)})
+            return
+        if path == "/api/mic/start":
+            from veillock.mic import MIC_RUNTIME
+
+            try:
+                body = json.loads(raw.decode("utf-8") or "{}") if raw else {}
+                payload = MIC_RUNTIME.start(scramble_when_lifted=bool(body.get("scramble")))
+                self._json(200 if payload.get("ok") else 400, payload)
+            except Exception as exc:  # noqa: BLE001
+                self._json(400, {"ok": False, "error": str(exc), "call_audio_aes_256_gcm": False})
+            return
+        if path == "/api/mic/stop":
+            from veillock.mic import MIC_RUNTIME
+
+            self._json(200, MIC_RUNTIME.stop())
+            return
+        if path == "/api/e2e/demo":
+            self._e2e_demo()
+            return
+        if path == "/api/wrap/preview":
+            self._wrap_preview()
+            return
+        if path == "/api/record/demo":
+            self._record_demo()
+            return
+        if path == "/api/join":
+            self._join_plan(raw)
+            return
+        if path == "/api/engulf/plan":
+            self._engulf_plan(raw)
             return
         if path == "/api/tether/start":
             try:
@@ -656,6 +916,208 @@ class Handler(BaseHTTPRequestHandler):
             )
         except Exception as exc:  # noqa: BLE001
             self._json(400, {"error": str(exc)})
+
+    def _join_plan(self, raw: bytes) -> None:
+        from veillock.surfaces import join_plan
+
+        try:
+            body = json.loads(raw.decode("utf-8") or "{}") if raw else {}
+            if not isinstance(body, dict):
+                body = {}
+            from veillock.surfaces import sandbox_environ
+
+            windows_build = body.get("windows_build")
+            self._json(
+                200,
+                join_plan(
+                    body.get("url") if body.get("url") else None,
+                    process=body.get("process") or None,
+                    platform=body.get("platform") or None,
+                    bundle_id=body.get("bundle") or body.get("bundle_id") or None,
+                    windows_build=windows_build if windows_build not in ("",) else None,
+                    environ=sandbox_environ(),
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._json(
+                400,
+                {
+                    "ok": False,
+                    "error": str(exc),
+                    "joined_call": False,
+                    "executed": False,
+                    "aes_on_call_path": False,
+                },
+            )
+
+    def _engulf_plan(self, raw: bytes) -> None:
+        from veillock.surfaces import engulf_plan
+
+        try:
+            body = json.loads(raw.decode("utf-8") or "{}") if raw else {}
+            if not isinstance(body, dict):
+                body = {}
+            windows_build = body.get("windows_build")
+            self._json(
+                200,
+                engulf_plan(
+                    str(body.get("app") or "zoom"),
+                    platform=body.get("platform") or None,
+                    windows_build=windows_build if windows_build not in ("",) else None,
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._json(
+                400,
+                {
+                    "ok": False,
+                    "error": str(exc),
+                    "executed": False,
+                    "registered_camera": False,
+                    "aes_on_call_path": False,
+                },
+            )
+
+    def _e2e_demo(self) -> None:
+        from veillock.crypto import DecryptError
+        from veillock.e2e import exchange_over_relay
+
+        try:
+            camera = b"camera-encoded-frame"
+            veil = b"veil-encoded-frame"
+            key = bytes(range(32))
+            opened, relay = exchange_over_relay([camera], key, veil=veil, lifted=False, pulse_ok=True)
+            leaked = relay.saw_plaintext(camera) or relay.saw_plaintext(veil)
+            wrong = False
+            try:
+                exchange_over_relay([camera], key, veil=veil, lifted=True, peer_key=bytes([9] * 32))
+            except DecryptError:
+                wrong = True
+            self._json(
+                200,
+                {
+                    "ok": True,
+                    "aes_256_gcm": True,
+                    "relay_saw_plaintext": leaked,
+                    "peer_got": opened[0].decode("ascii"),
+                    "wrong_key_closed": wrong,
+                    "note": (
+                        "Relay saw ciphertext only. With the veil still on, the peer decrypted the veil, "
+                        "not the camera. A wrong key failed closed. This is AES-256-GCM on the VeilLock "
+                        "link, not on the call app. The scramble is still obfuscation."
+                    ),
+                },
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._json(400, {"ok": False, "error": str(exc)})
+
+    def _wrap_preview(self) -> None:
+        from veillock.codecsim import jpeg_like
+        from veillock.scramble import scramble_frame, unveil_frame
+
+        try:
+            h, w = 128, 128
+            rng = np.random.default_rng(7)
+            src = rng.integers(0, 256, size=(h, w, 3), dtype=np.uint8)
+            yy, xx = np.mgrid[0:h, 0:w]
+            face = ((xx - w * 0.5) ** 2) / (w * w * 0.08) + ((yy - h * 0.45) ** 2) / (h * h * 0.10) < 1.0
+            src[face] = (210, 160, 140)
+            src[h // 3 : h // 3 + 8, w // 3 : w // 3 + 8] = (30, 30, 40)
+            src[h // 3 : h // 3 + 8, w // 2 : w // 2 + 8] = (30, 30, 40)
+            key = secrets.token_bytes(32)
+            wrong = bytes((b ^ 0xFF) for b in key)
+            quality = 40
+            call = scramble_frame(src, key, epoch=1)
+            lossy = jpeg_like(call, quality=quality)
+            peer = unveil_frame(lossy, key)
+            denied = unveil_frame(lossy, wrong)
+            body = (slice(8, -8), slice(None), slice(None))
+            self._json(
+                200,
+                {
+                    "ok": True,
+                    "width": w,
+                    "height": h,
+                    "quality": quality,
+                    "aes_256_gcm": False,
+                    "kind": "scramble",
+                    "session_key": key.hex(),
+                    "source_b64": _rgb_b64(src),
+                    "call_b64": _rgb_b64(call),
+                    "peer_b64": _rgb_b64(peer.image),
+                    "denied_b64": _rgb_b64(denied.image),
+                    "with_key": {
+                        "authorized": peer.authorized,
+                        "kind": peer.kind,
+                        "correlation": round(_corr(peer.image[body], src[body]), 4),
+                        "mae": round(_mae(peer.image[body], src[body]), 4),
+                    },
+                    "without_key": {
+                        "authorized": denied.authorized,
+                        "kind": denied.kind,
+                        "correlation": round(_corr(denied.image[body], src[body]), 4),
+                        "mae": round(_mae(denied.image[body], src[body]), 4),
+                    },
+                    "provider": {
+                        "correlation": round(_corr(call[body], src[body]), 4),
+                        "mae": round(_mae(call[body], src[body]), 4),
+                    },
+                    "note": peer.note,
+                },
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._json(400, {"error": str(exc)})
+
+    def _record_demo(self) -> None:
+        import os
+        import tempfile
+
+        from veillock.record import play_recording, seal_recording
+
+        path = None
+        try:
+            frames = _synthetic_frames(n=2, h=32, w=32)
+            key = secrets.token_bytes(32)
+            pcm = np.array([1000, -1000, 500, -500] * 80, dtype=np.int16)
+            fd, path = tempfile.mkstemp(suffix=".veilrec")
+            os.close(fd)
+            seal_recording(path, frames, key, pcm=pcm, rotation_interval=60)
+            played = play_recording(path, key)
+            match = bool(np.array_equal(played.frames, frames) and np.array_equal(played.pcm, pcm))
+            self._json(
+                200,
+                {
+                    "ok": True,
+                    "aes_256_gcm": True,
+                    "match": match,
+                    "frames": int(frames.shape[0]),
+                    "session_key": key.hex(),
+                    "note": played.note,
+                },
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._json(400, {"error": str(exc)})
+        finally:
+            if path:
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+
+
+def _corr(a: np.ndarray, b: np.ndarray) -> float:
+    x = a.astype(np.float64).ravel()
+    y = b.astype(np.float64).ravel()
+    x = x - x.mean()
+    y = y - y.mean()
+    denom = float(np.linalg.norm(x) * np.linalg.norm(y))
+    if denom == 0.0:
+        return 0.0
+    return float(x @ y) / denom
+
+
+def _mae(a: np.ndarray, b: np.ndarray) -> float:
+    return float(np.mean(np.abs(a.astype(np.int16) - b.astype(np.int16))))
 
 
 def make_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> ThreadingHTTPServer:

@@ -31,3 +31,9 @@ The Python package is the counted desktop download: https://veillock-download-tr
 GitHub: https://github.com/AzielEliab/veillock
 
 **Forks are welcome and always allowed.**
+
+iPhone FaceTime cannot select a third-party camera or microphone. This
+Flutter client is a local obfuscation overlay. It is not the desktop
+call scramble, and it is not the desktop AES-256-GCM recording
+(`veillock record` / `veillock play`). Desktop `veillock wrap` is what
+a call app can point at a virtual camera.

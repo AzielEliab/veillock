@@ -318,6 +318,100 @@ curl -sS -X POST https://veillock-download-tracker.vibelock.workers.dev/v1/pulse
 GET `/download` still serves the gzip tarball and is counted.
 
 
+## Call wrap
+
+`veillock wrap` is the generic path for any desktop app that can choose
+a camera: Skype, Zoom, Google Meet, Teams, Discord, WhatsApp desktop,
+Signal desktop, OBS, Mac FaceTime, and browser WebRTC. The app is not
+modified. It is pointed at the virtual camera named **VeilLock**.
+
+Two different protections, and they are not the same thing:
+
+| Path | What it is |
+|------|------------|
+| Live call video | A keyed visual scramble (8×8 block permutation, rotation, and invert) plus a sync strip. An authorized peer running `veillock receive` approximately reverses a capture of the incoming call. **Obfuscation, not AES-256-GCM.** The call provider sees the natural veil, or the scrambled tiles after you lift the veil for a protected call. Lossy codecs (H.264, VP8, VP9, AV1) would destroy raw AES-GCM pixels, so those pixels are not what is sent. Channel swaps are not used; 4:2:0 color subsampling would not bring them back. |
+| Live call audio | Comfort noise until you lift the veil. Then the microphone, or a keyed permutation of short PCM blocks if you chose scramble. **Obfuscation, not AES-256-GCM.** Opus and AAC do not carry sample ciphertext. A speech codec that rebuilds phase does not return the waveform, with or without the key. A short block can still contain a speech fragment. PulseCheck failure is noise, never the microphone. |
+| `veillock record` / `veillock play` | **AES-256-GCM at rest** for video and audio, video only, or audio only. The key is not in the file. Playback decrypts in memory. Plaintext export is off unless you pass `--export`. A call app or a screen recorder pointed at a playing screen is not this file. |
+
+The veil stays on until you turn obfuscation off or accept a call
+through AZ-OS. You control the lift. PulseCheck failure halts to veil
+or noise. Plaintext is not sent and is not written.
+
+Keys are exchanged out of band: a 32-byte pre-shared key, the existing
+HMAC-wrapped broadcast key (that wrap is AES-GCM of the *key*, not of
+the picture), or X25519 then HKDF-SHA256 (`veillock keygen`,
+`veillock agree`).
+
+```bash
+veillock keygen
+veillock wrap --mic --source camera --feed scramble --azos-accept --actor "your name"
+veillock receive --in captured.npy --out picture.npy --key <hex>
+veillock record --in frames.npy --audio-in mic.npy --out clip.veilrec --key <hex>
+veillock play --in clip.veilrec --key <hex>
+veillock play --in clip.veilrec --export --out frames.npy --key <hex>
+```
+
+`veillock wrap --mic` also feeds a microphone the call app can select.
+On Linux, VeilLock creates that source. The name in the picker is
+**VeilLock Microphone**. `pactl` loads a null sink and a remap source;
+`paplay` writes the public audio; stop unloads both modules. That needs
+pipewire-pulse or PulseAudio. It is not a kernel driver.
+
+On macOS, no CoreAudio plugin is shipped. If BlackHole is already
+installed, the call app selects **BlackHole 2ch** (not a device named
+VeilLock) and sox or ffmpeg feeds it. On Windows, no audio driver is
+shipped. If VB-Audio Virtual Cable is already installed, the call app
+selects **CABLE Output** and VeilLock writes to **CABLE Input**.
+
+Default public audio is comfort noise. After you lift the veil it is
+the real microphone, unless you passed `--audio-feed scramble`. The
+real microphone can be sealed into the AES-256-GCM `.veilrec` at the
+same time. The call app never receives that file.
+
+Every recording VeilLock writes is encrypted at rest and readable only
+through VeilLock. That includes what you send and the decrypted stream
+you receive, from the CLI, the loopback UI, `veillock engulf --record`,
+and the browser extension. Chunks are sealed and flushed one at a time,
+so a crash does not leave a plaintext file. `veillock play` and the UI
+player decrypt in memory. `--export` is off unless you ask for it, and
+it is labeled as leaving this protection. Someone can still point
+another camera or a screen recorder at a playing screen.
+
+Engulf and end-to-end encryption are separate from that picker.
+
+| Platform | App | Engulf | Encryption |
+|----------|-----|--------|------------|
+| Linux | Native app that opens `/dev/video*` itself | `veillock engulf -- <app>`. `bwrap` hides the other video nodes, or `LD_PRELOAD` redirects `open()` of `/dev/video*`. PipeWire is not engulfed. | The app still gets the veil or the scramble. **Not AES-256-GCM.** |
+| Linux | PipeWire, portal, Flatpak, Snap | Not engulfed. | Same obfuscation on the app's stream. |
+| Windows 11 | Zoom, Skype, Teams, Discord, and other native apps | `veilcam-register.exe` on build 22000+ calls `MFCreateVirtualCamera`. The friendly name argument is VeilLock; Windows appends ` Windows Virtual Camera`. No kernel driver. VeilLock does not hook. Other cameras remain, so a saved device id may still need one pick. Without the helper, nothing is registered. The microphone is still **CABLE Output** if VB-Audio Virtual Cable is installed. | The app's stream is obfuscation, **not AES-256-GCM.** |
+| macOS | FaceTime and other hardened or Apple-signed apps | Not engulfed. SIP and the hardened runtime block injection. Apple-signed FaceTime cannot be injected into. Select the virtual camera. | The app's stream is obfuscation. |
+| Chromium | Meet, Teams web, Zoom web, Discord web, any WebRTC page | The extension wraps `getUserMedia`. Default is a generated veil, not the real camera. | **AES-256-GCM** on each encoded frame when both browsers have the extension and the same key. A relay that forwards those frames unchanged sees ciphertext. A server that decodes or transcodes does not recover the picture. |
+| iOS | Any app, including iPhone FaceTime | Apps cannot be wrapped. | No VeilLock path on iOS. |
+| Two VeilLock users | Beside any native call | `veillock link` is a separate TCP channel. The call app still sends the veil. | **AES-256-GCM** after a deflate encoder, with key rotation. Both ends need VeilLock. A wrong key fails closed. PulseCheck failure sends nothing. |
+
+The keyed scramble is the fallback for a person who does not run VeilLock. That path is obfuscation, not AES-256-GCM. The X25519 label for the encrypted channel is `veillock-e2e-media-v1`. The scramble key is a different label.
+
+`veillock compat` prints the coverage set: about 50 widely used call and video apps, with desktop, browser, and phone variants where those clients differ. It is not a market-share ranking. Profiles are schema 1. A capture hint (V4L2, PipeWire, Media Foundation, DirectShow, AVFoundation, getUserMedia) outranks a process name. An unknown app still gets a safe default report. `veillock join <url>` prints that same report for a Teams, Meet, Zoom, Webex, Slack, or Discord link and does not join the call. A gallery is one outgoing veil or scramble, not an AES mesh. Screen share is outside the camera wrap. A new app is a profile entry (`register_profile`) plus a test, not a new capture fork. The per-app table and the sources are in [docs/app-coverage.md](docs/app-coverage.md). iPhone FaceTime cannot select a third-party camera. Windows 10, DirectShow-only apps, Flatpak, Snap, Firefox, Safari, and macOS SIP stay on the limits written there.
+
+`veillock apps` prints the device-picker steps. iPhone FaceTime cannot
+select a third-party camera or microphone. Most phone clients cannot
+either. VeilLock does not attach to a call app that is already running. Screen-sharing a
+window that already shows unveiled video shows that window.
+
+Lamb Lens order: Service, then Clarity, then Peace. Identity is Aziel
+Eliab only. Forks are welcome and always allowed.
+
+The local UI (`veillock ui`) has a Wrap panel: preview the scramble
+against a JPEG-like recompression, and seal and play a synthetic
+AES-256-GCM recording in memory. The same desk plans a join link and an
+engulf. It does not join the call or launch the app. Numbers shown there
+are computed for that preview. The layer map is
+[docs/layers.md](docs/layers.md). The human UI is aziel-runtime.
+`suite/runtime-ui.json` (schema `veillock-runtime-ui-1`) is the contract
+that UI can cross-update against. Slug `veillock` stays local-only, with
+no public door ops. This package does not append the ACT-RECEIPT-1.0 chain.
+Until that UI opens the desk, VeilLock still opens with `veillock ui`.
+
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).

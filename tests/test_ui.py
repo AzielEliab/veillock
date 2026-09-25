@@ -39,6 +39,8 @@ def test_ui_get_root_contains_tether() -> None:
             assert b"VeilLock" in body
             assert b"127.0.0.1" in body
             assert b"Tether" in body
+            assert b"Wrap any call" in body
+            assert b"not AES-256-GCM" in body
             assert b"AZ-OS" in body
             assert b"consent" in body.lower() or b"Consent" in body
             assert b"Start camera veil" in body
@@ -80,6 +82,168 @@ def test_ui_azos_accept_lifts_veil() -> None:
         with urllib.request.urlopen(req2, timeout=5) as res:
             body = json.loads(res.read().decode("utf-8"))
             assert body.get("veil") == "on"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join(timeout=2)
+
+
+def test_ui_wrap_preview_and_record_demo() -> None:
+    import json
+    import urllib.request
+
+    httpd, thread = _start()
+    try:
+        port = httpd.server_address[1]
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/wrap/preview",
+            data=b"{}",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=15) as res:
+            body = json.loads(res.read().decode("utf-8"))
+        assert body["aes_256_gcm"] is False
+        assert body["with_key"]["authorized"] is True
+        assert body["with_key"]["correlation"] > 0.9
+        assert body["without_key"]["authorized"] is False
+        assert body["provider"]["correlation"] < 0.25
+        req2 = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/record/demo",
+            data=b"{}",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req2, timeout=15) as res:
+            rec = json.loads(res.read().decode("utf-8"))
+        assert rec["aes_256_gcm"] is True
+        assert rec["match"] is True
+        assert "AES-256-GCM" in rec["note"]
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join(timeout=2)
+
+
+def test_ui_join_engulf_and_suite_stay_on_the_plan() -> None:
+    import json
+    import urllib.error
+    import urllib.request
+
+    httpd, thread = _start()
+    try:
+        port = httpd.server_address[1]
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5) as res:
+            page = res.read()
+        assert b"Plan this link" in page
+        assert b"Plan engulf" in page
+        assert b"Seal and play in memory" in page
+        assert b"aziel-runtime" in page
+        assert b"ACT-RECEIPT" in page
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/join",
+            data=json.dumps(
+                {
+                    "url": "https://teams.microsoft.com/l/meetup-join/abc",
+                    "platform": "chromium",
+                }
+            ).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as res:
+            joined = json.loads(res.read().decode("utf-8"))
+        assert joined["camera"] == "extension-getusermedia"
+        assert joined["joined_call"] is False
+        assert joined["aes_on_call_path"] is False
+        assert joined["executed"] is False
+        assert "not an AES mesh" in joined["report"]
+        req2 = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/engulf/plan",
+            data=json.dumps({"app": "zoom", "platform": "windows"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req2, timeout=5) as res:
+            plan = json.loads(res.read().decode("utf-8"))
+        assert plan["executed"] is False
+        assert plan["registered_camera"] is False
+        assert plan["engulfs"] is False
+        assert "does not hook" in plan["note"]
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/suite", timeout=5) as res:
+            tile = json.loads(res.read().decode("utf-8"))
+        assert tile["schema"] == "veillock-runtime-ui-1"
+        assert tile["human_ui"] == "aziel-runtime"
+        assert tile["local_only"] is True
+        assert tile["public_door_ops"] == []
+        assert tile["separate_azinterface_product"] is False
+        assert tile["boots_human_ui"] is False
+        assert "azinterface_repo" not in tile
+        assert tile["honesty"]["aes_on_call_path"] is False
+        assert tile["honesty"]["increments_downloads"] is False
+        assert tile["receipts"]["spec"] == "ACT-RECEIPT-1.0"
+        assert tile["receipts"]["writes_public_chain"] is False
+        assert tile["receipts"]["fields_owned_by_runtime"] == ["hash", "request", "output", "event"]
+        assert "veil" in tile["receipts"]["local_consent_fields"]
+        assert tile["orchestration_host"]["built"] is False
+        assert tile["orchestration_host"]["mcp"] is False
+        assert "join_plan" in tile["safe_calls"]
+        assert "status_report" in tile["safe_calls"]
+        assert "wrap" in tile["calls"]
+        assert "play" in tile["calls"]
+        assert "status" in tile["calls"]
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=5) as res:
+            status = json.loads(res.read().decode("utf-8"))
+        assert status["schema"] == "veillock-runtime-ui-1"
+        assert status["returns_key"] is False
+        assert status["lifts_veil"] is False
+        assert status["receipt"]["writes_public_chain"] is False
+        assert status["consent"]["azos_hook"] is True
+        assert status["consent"]["veil"] in ("on", "lifted")
+        assert joined["schema"] == "veillock-runtime-ui-1"
+        assert joined["profile_schema"] == 1
+        assert joined["receipt"]["writes_public_chain"] is False
+        lied = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/join",
+            data=json.dumps(
+                {
+                    "process": "Zoom.exe",
+                    "platform": "windows",
+                    "have_vcam": True,
+                    "capture": "media-foundation",
+                }
+            ).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(lied, timeout=5) as res:
+            honest = json.loads(res.read().decode("utf-8"))
+        assert honest["camera"] == "unregistered"
+        assert honest["registered_camera"] is False
+        assert honest["returns_key"] is False
+        assert honest["lifts_veil"] is False
+        assert "argv" not in honest
+        forged = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/engulf/plan",
+            data=json.dumps(
+                {"app": "zoom;id", "platform": "linux", "have_vcam": True, "video_device": "/etc/passwd"}
+            ).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            urllib.request.urlopen(forged, timeout=5)
+            raise AssertionError("shell-looking app was accepted")
+        except urllib.error.HTTPError as exc:
+            refused = json.loads(exc.read().decode("utf-8"))
+            assert exc.code == 400
+        assert refused["ok"] is False
+        assert refused["executed"] is False
+        assert "argv" not in refused
+        assert "argv" not in plan
+        assert plan["returns_argv"] is False
+        assert plan["returns_key"] is False
+        assert plan["launch"] == "cli-only"
     finally:
         httpd.shutdown()
         httpd.server_close()

@@ -1,0 +1,86 @@
+{
+  "schema": "veillock-runtime-ui-1",
+  "product": "veillock",
+  "title": "VeilLock",
+  "author": "Aziel Eliab",
+  "identity": "Aziel Eliab only",
+  "lamb_lens": ["Service", "Clarity", "Peace"],
+  "human_ui": "aziel-runtime",
+  "human_ui_repo": "https://github.com/AzielEliab/aziel-runtime",
+  "human_ui_catalog": "https://aziel-runtime.vibelock.workers.dev/v1/software",
+  "software_slug": "veillock",
+  "catalog_status": "local_only",
+  "public_door_ops": [],
+  "local_only": true,
+  "separate_azinterface_product": false,
+  "handoff": "The human side is aziel-runtime. Its software card for slug veillock is local_only and the public door lists no ops. Cross-updates should read this contract and open the local desk. This file does not boot that UI, does not add public door ops, and does not append the public receipt chain.",
+  "desk": {
+    "launch": ["veillock", "ui"],
+    "url": "http://127.0.0.1:8761/",
+    "bind": "127.0.0.1",
+    "port": 8761,
+    "status": "GET /api/status"
+  },
+  "calls": {
+    "wrap": {
+      "command": ["veillock", "wrap", "--mic"],
+      "aes_256_gcm": false,
+      "effect": "local veil or keyed scramble"
+    },
+    "engulf": {
+      "command": ["veillock", "engulf", "--"],
+      "launches": "cli-only",
+      "plan_returns_argv": false
+    },
+    "join": {
+      "command": ["veillock", "join"],
+      "joins_call": false
+    },
+    "link": {
+      "command": ["veillock", "link"],
+      "aes_256_gcm": true
+    },
+    "play": {
+      "command": ["veillock", "play"],
+      "aes_256_gcm": true,
+      "plaintext_file": false
+    },
+    "record": {
+      "command": ["veillock", "record"],
+      "aes_256_gcm": true,
+      "key_in_file": false
+    },
+    "status": {
+      "local": ["veillock", "azos"],
+      "http": "GET /api/status",
+      "lifts_veil": false
+    }
+  },
+  "honesty": {
+    "aes_on_call_path": false,
+    "recording_aes_256_gcm": true,
+    "call_video": "keyed scramble, not AES-256-GCM",
+    "e2e": "veillock link and Chromium encoded frames are AES-256-GCM between VeilLock peers",
+    "join_does_not_join_the_call": true,
+    "engulf_plan_does_not_launch": true,
+    "increments_downloads": false,
+    "hosted_worker_does_not_register_a_camera": true
+  },
+  "receipts": {
+    "spec": "ACT-RECEIPT-1.0",
+    "writes_public_chain": false,
+    "public_chain": "https://www.azielcorpuslibrary.net/receipts",
+    "fields_owned_by_runtime": ["hash", "request", "output", "event"],
+    "attempt_fields_filled_by_runtime": ["request_id", "attempt_n", "parent_receipt_id", "correlation_id"],
+    "local_consent_fields": ["ok", "product", "azos_hook", "overlay", "veil", "obfuscate", "obfuscation_on", "call_accepted", "reason", "actor", "call_id", "kernel", "kills_caller_os"],
+    "note": "Hosted /v1/call-accept and the local AZ-OS hook keep the consent fields above. A later aziel-runtime append may hash a VeilLock plan as output. VeilLock does not mint hash, request_id, or parent_receipt_id. An empty public tip is not success. Fail-open append-skip belongs to aziel-runtime, not this package."
+  },
+  "orchestration_host": {
+    "built": false,
+    "mcp": false,
+    "node_mesh": false,
+    "forensic": false,
+    "note": "Not built in this package. A later host may read describe, join_plan, engulf_plan, status_report, and this contract. It must not treat a plan as a launch, a camera registration, a key, a download increment, or a public receipt append."
+  },
+  "safe_calls": ["describe", "join_plan", "engulf_plan", "status_report", "runtime_ui"]
+}

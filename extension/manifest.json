@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "VeilLock",
+  "version": "0.2.0",
+  "description": "Wrap getUserMedia with a veil. Optionally AES-256-GCM the encoded frames between two VeilLock browsers. Author: Aziel Eliab.",
+  "action": { "default_popup": "popup.html", "default_title": "VeilLock" },
+  "permissions": ["storage"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["bridge.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["engulf.js"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "world": "MAIN",
+      "type": "module"
+    }
+  ]
+}

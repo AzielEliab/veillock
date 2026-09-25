@@ -1,0 +1,1181 @@
+"""Adaptive app coverage. One registry, not one capture fork per product.
+
+A profile says how an app gets a camera, a microphone, and (when it is
+possible) true end-to-end media. ``detect`` picks the profile from a
+process name, a bundle id, or a page host, then resolves the strategy
+for the platform in front of it.
+
+Adding an app is ``register_profile`` plus a test. The strategies stay:
+
+- ``engulf-v4l2`` — Linux, and only when that process opens ``/dev/video*``
+  itself. PipeWire, the portal, Flatpak, and Snap are not engulfed.
+- ``win11-vcam`` — Windows 11 build 22000+ user-mode camera while
+  ``veilcam-register.exe`` is running. Other cameras remain. VeilLock
+  does not hook. The picker suffix is ``Windows Virtual Camera``.
+- ``unregistered`` — that Windows camera is not running, so nothing named
+  VeilLock was registered.
+- ``extension-getusermedia`` — Chromium extension wraps ``getUserMedia``.
+- ``pick-cam`` / ``pick-mic`` — the person selects the device. macOS is
+  always this for the camera. Firefox and Safari are this too.
+- ``impossible`` — the platform will not accept a third-party camera.
+  iPhone FaceTime is this case.
+- ``linux-veillock-mic``, ``blackhole``, ``vb-cable`` — the microphone.
+  ``vb-cable`` means the person selects CABLE Output. VeilLock does not
+  create that device.
+- ``insertable-streams`` — Chromium encoded-frame AES-256-GCM. Both
+  browsers need the extension and the key.
+- ``veillock-link`` — native AES-256-GCM on a TCP channel beside the call.
+  The call app still gets the veil or the scramble, which is not AES-256-GCM.
+- ``none`` — no VeilLock end-to-end path on that client.
+
+The built-in list is a coverage set of widely used call and video apps.
+It is not a market-share ranking and it does not carry user counts.
+
+Author: Aziel Eliab.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, replace
+from urllib.parse import urlparse
+
+PROFILE_SCHEMA = 1
+
+# Resolved at detect time. A profile must not store these; they are not capabilities an author claims.
+RESOLVED_ONLY = frozenset({"unregistered", "directshow-only"})
+
+CAMERA_STRATEGIES = frozenset(
+    {
+        "engulf-v4l2",
+        "win11-vcam",
+        "unregistered",
+        "directshow-only",
+        "extension-getusermedia",
+        "pick-cam",
+        "impossible",
+    }
+)
+CAPTURES = frozenset(
+    {
+        "unknown",
+        "v4l2",
+        "pipewire",
+        "portal",
+        "flatpak",
+        "snap",
+        "media-foundation",
+        "directshow",
+        "avfoundation",
+        "getusermedia",
+    }
+)
+MIC_STRATEGIES = frozenset(
+    {
+        "linux-veillock-mic",
+        "blackhole",
+        "vb-cable",
+        "extension-getusermedia",
+        "pick-mic",
+        "impossible",
+    }
+)
+E2E_STRATEGIES = frozenset({"insertable-streams", "veillock-link", "none"})
+
+STRATEGY_LIMITS = {
+    "engulf-v4l2": (
+        "Linux engulf starts the process with bwrap or LD_PRELOAD so an open of /dev/video* "
+        "receives VeilLock. PipeWire, the portal, Flatpak, and Snap are not engulfed. "
+        "The app's stream is obfuscation, not AES-256-GCM."
+    ),
+    "win11-vcam": (
+        "Windows 11 registers a user-mode camera. The friendly name argument is VeilLock; "
+        "Windows appends Windows Virtual Camera. Other physical cameras remain visible, and "
+        "an app that saved a device id may still need one pick. VeilLock does not hook capture APIs. "
+        "No kernel driver. The app's stream is obfuscation, not AES-256-GCM."
+    ),
+    "unregistered": (
+        "The Windows 11 registrar is not running, or this build is older than 22000, "
+        "so no VeilLock camera was registered. Windows 10 cannot host MFCreateVirtualCamera. "
+        "VeilLock does not hook capture APIs. The app keeps whatever camera it already selected."
+    ),
+    "directshow-only": (
+        "This app opens the camera through DirectShow only. VeilLock does not ship a DirectShow filter "
+        "and does not hook capture APIs. The Windows 11 Media Foundation camera will not appear in that picker."
+    ),
+    "extension-getusermedia": (
+        "The Chromium extension wraps getUserMedia. The default page image is a generated veil, "
+        "not the real camera. Firefox and Safari are not covered by that extension."
+    ),
+    "pick-cam": (
+        "The person selects VeilLock in the app. macOS cannot be engulfed: SIP and the hardened "
+        "runtime block injection, and Apple-signed FaceTime cannot be injected into. "
+        "The app's stream is obfuscation, not AES-256-GCM."
+    ),
+    "impossible": (
+        "This client cannot select a third-party camera. iPhone FaceTime cannot. "
+        "Apps cannot be wrapped on iOS."
+    ),
+    "linux-veillock-mic": "Linux creates VeilLock Microphone with pactl. It is not a kernel driver.",
+    "blackhole": "macOS does not ship a CoreAudio plugin. The app selects BlackHole 2ch only if BlackHole is installed.",
+    "vb-cable": (
+        "Windows does not ship an audio driver. The app selects CABLE Output only if VB-Audio "
+        "Virtual Cable is installed. VeilLock writes to CABLE Input and does not create that microphone."
+    ),
+    "pick-mic": "The site or app microphone picker is used. VeilLock does not create a device for this client.",
+    "insertable-streams": (
+        "Both Chromium browsers need the extension and the same key. Encoded frames are AES-256-GCM. "
+        "A relay that forwards them unchanged sees ciphertext. A server that decodes or transcodes "
+        "does not recover the picture."
+    ),
+    "veillock-link": (
+        "veillock link is AES-256-GCM between two VeilLock users on a separate TCP channel. "
+        "The call app still carries the veil or the scramble, which is not AES-256-GCM."
+    ),
+    "none": "No VeilLock end-to-end path on this client. The scramble is not available here either when the camera itself is impossible.",
+}
+
+MEETING = (
+    "Gallery and grid calls use one outgoing camera. Every other participant sees the veil or the keyed scramble. "
+    "That picture is not AES-256-GCM. A multi-party meeting is not an AES mesh. "
+    "AES-256-GCM is veillock link between two VeilLock users, or Chromium encoded frames when both browsers have the extension and the same key. "
+    "A server that decodes or transcodes does not recover the picture. People without VeilLock see the veil or the scramble. "
+    "Screen share is not the camera wrap. Sharing a window that already shows unveiled video shows that window. "
+    "Join by link uses veillock join and the same detect path for Teams, Meet, Zoom, Webex, Slack huddles, Discord, and any other host. "
+    "A recording VeilLock writes stays AES-256-GCM at rest and plays only in VeilLock. "
+    "PulseCheck failure is veil or noise, never plaintext."
+)
+
+_BROWSER_PROCESSES = {
+    "chrome": "chromium",
+    "google-chrome": "chromium",
+    "chromium": "chromium",
+    "brave": "chromium",
+    "msedge": "chromium",
+    "microsoft-edge": "chromium",
+    "firefox": "firefox",
+    "safari": "safari",
+}
+
+
+def _pairs(*items: tuple[str, str]) -> tuple[tuple[str, str], ...]:
+    return items
+
+
+def _cam(
+    linux: str = "pick-cam",
+    windows: str = "win11-vcam",
+    darwin: str = "pick-cam",
+    ios: str = "impossible",
+    android: str = "impossible",
+) -> tuple[tuple[str, str], ...]:
+    return _pairs(
+        ("linux", linux),
+        ("windows", windows),
+        ("darwin", darwin),
+        ("ios", ios),
+        ("android", android),
+    )
+
+
+def _mic_desktop() -> tuple[tuple[str, str], ...]:
+    return _pairs(
+        ("linux", "linux-veillock-mic"),
+        ("windows", "vb-cable"),
+        ("darwin", "blackhole"),
+        ("ios", "impossible"),
+        ("android", "impossible"),
+    )
+
+
+def _cam_browser() -> tuple[tuple[str, str], ...]:
+    return _pairs(
+        ("chromium", "extension-getusermedia"),
+        ("firefox", "pick-cam"),
+        ("safari", "pick-cam"),
+        ("ios", "impossible"),
+        ("android", "impossible"),
+    )
+
+
+def _mic_browser() -> tuple[tuple[str, str], ...]:
+    return _pairs(
+        ("chromium", "extension-getusermedia"),
+        ("firefox", "pick-mic"),
+        ("safari", "pick-mic"),
+        ("ios", "impossible"),
+        ("android", "impossible"),
+    )
+
+
+def _cam_mobile() -> tuple[tuple[str, str], ...]:
+    return _pairs(
+        ("ios", "impossible"),
+        ("android", "impossible"),
+        ("linux", "impossible"),
+        ("windows", "impossible"),
+        ("darwin", "impossible"),
+    )
+
+
+def _mic_mobile() -> tuple[tuple[str, str], ...]:
+    return _pairs(("ios", "impossible"), ("android", "impossible"))
+
+
+@dataclass(frozen=True)
+class CaptureHint:
+    """How the app opens a camera. This outranks a stale process name."""
+
+    capture: str = "unknown"
+    browser: str | None = None
+    windows_build: int | None = None
+    have_vcam: bool = False
+    sandboxed: bool = False
+
+
+@dataclass(frozen=True)
+class Variant:
+    variant_id: str
+    kind: str
+    processes: tuple[str, ...]
+    bundles: tuple[str, ...]
+    hosts: tuple[str, ...]
+    camera: tuple[tuple[str, str], ...]
+    mic: tuple[tuple[str, str], ...]
+    e2e: str
+
+
+@dataclass(frozen=True)
+class AppProfile:
+    app_id: str
+    title: str
+    group: str
+    note: str
+    variants: tuple[Variant, ...]
+    schema: int = PROFILE_SCHEMA
+
+
+@dataclass(frozen=True)
+class Detection:
+    app_id: str
+    title: str
+    variant_id: str
+    kind: str
+    platform: str
+    camera: str
+    mic: str
+    e2e: str
+    note: str
+    limit: str
+    matched: bool = True
+    schema: int = PROFILE_SCHEMA
+    command: str = ""
+    meeting: str = ""
+
+    def as_dict(self) -> dict[str, str]:
+        return {
+            "app_id": self.app_id,
+            "title": self.title,
+            "variant_id": self.variant_id,
+            "kind": self.kind,
+            "platform": self.platform,
+            "camera": self.camera,
+            "mic": self.mic,
+            "e2e": self.e2e,
+            "note": self.note,
+            "limit": self.limit,
+            "matched": "yes" if self.matched else "no",
+            "schema": str(self.schema),
+            "command": self.command,
+            "meeting": self.meeting,
+            "author": "Aziel Eliab",
+        }
+
+
+def _validate(profile: AppProfile) -> None:
+    if profile.schema != PROFILE_SCHEMA:
+        raise ValueError(
+            f"profile schema {profile.schema} is not {PROFILE_SCHEMA}. "
+            "The profile was not loaded. Update it to schema 1; VeilLock does not guess."
+        )
+    if not profile.app_id or not profile.variants:
+        raise ValueError("a profile needs an id and at least one variant")
+    if profile.group not in {"workplace", "consumer", "creator"}:
+        raise ValueError("group must be workplace, consumer, or creator")
+    for variant in profile.variants:
+        if variant.kind not in {"native", "browser", "mobile"}:
+            raise ValueError(f"{variant.variant_id} kind is not native, browser, or mobile")
+        if variant.e2e not in E2E_STRATEGIES:
+            raise ValueError(f"unknown e2e strategy {variant.e2e}")
+        for _key, value in variant.camera:
+            if value not in CAMERA_STRATEGIES or value in RESOLVED_ONLY:
+                raise ValueError(f"{variant.variant_id} camera {value} is not a profile strategy")
+        for _key, value in variant.mic:
+            if value not in MIC_STRATEGIES:
+                raise ValueError(f"{variant.variant_id} mic {value} is not a mic strategy")
+
+
+def _native(
+    app_id: str,
+    processes: tuple[str, ...],
+    bundles: tuple[str, ...] = (),
+    camera: tuple[tuple[str, str], ...] | None = None,
+) -> Variant:
+    return Variant(
+        variant_id=f"{app_id}-desktop",
+        kind="native",
+        processes=processes,
+        bundles=bundles,
+        hosts=(),
+        camera=camera if camera is not None else _cam(),
+        mic=_mic_desktop(),
+        e2e="veillock-link",
+    )
+
+
+def _browser(app_id: str, hosts: tuple[str, ...], processes: tuple[str, ...] = ()) -> Variant:
+    return Variant(
+        variant_id=f"{app_id}-browser",
+        kind="browser",
+        processes=processes,
+        bundles=(),
+        hosts=hosts,
+        camera=_cam_browser(),
+        mic=_mic_browser(),
+        e2e="insertable-streams",
+    )
+
+
+def _mobile(app_id: str, bundles: tuple[str, ...], processes: tuple[str, ...] = ()) -> Variant:
+    return Variant(
+        variant_id=f"{app_id}-mobile",
+        kind="mobile",
+        processes=processes,
+        bundles=bundles,
+        hosts=(),
+        camera=_cam_mobile(),
+        mic=_mic_mobile(),
+        e2e="none",
+    )
+
+
+def _profile(
+    app_id: str,
+    title: str,
+    group: str,
+    note: str,
+    variants: tuple[Variant, ...],
+) -> AppProfile:
+    profile = AppProfile(app_id=app_id, title=title, group=group, note=note, variants=variants)
+    _validate(profile)
+    return profile
+
+
+def _builtin_profiles() -> tuple[AppProfile, ...]:
+    """Coverage set. Sources and the retired-product notes live in docs/app-coverage.md."""
+    rows: list[AppProfile] = []
+
+    def add(profile: AppProfile) -> None:
+        rows.append(profile)
+
+    def workplace(
+        app_id: str,
+        title: str,
+        processes: tuple[str, ...],
+        hosts: tuple[str, ...] = (),
+        bundles: tuple[str, ...] = (),
+        note: str = "",
+        mobile_bundles: tuple[str, ...] = (),
+        camera: tuple[tuple[str, str], ...] | None = None,
+    ) -> None:
+        variants = [_native(app_id, processes, bundles, camera)]
+        if hosts:
+            variants.append(_browser(app_id, hosts))
+        if mobile_bundles:
+            variants.append(_mobile(app_id, mobile_bundles))
+        add(_profile(app_id, title, "workplace", note, tuple(variants)))
+
+    workplace(
+        "zoom",
+        "Zoom",
+        ("zoom",),
+        ("zoom.us", "zoom.com"),
+        ("us.zoom.xos",),
+        "Desktop clients on Linux usually open the camera through PipeWire, so the default is pick-cam. engulf-v4l2 applies only when this process opens /dev/video* itself.",
+        ("us.zoom.videomeetings", "us.zoom.zrc"),
+    )
+    workplace(
+        "teams",
+        "Microsoft Teams",
+        ("teams", "ms-teams"),
+        ("teams.microsoft.com", "teams.live.com", "teams.microsoft.us"),
+        ("com.microsoft.teams",),
+        "Join links match the host, not the desktop exe version. Gallery, screen share, and the veil use the same meeting rules as Meet, Zoom, Webex, Slack huddles, and Discord.",
+        ("com.microsoft.teams",),
+    )
+    workplace(
+        "meet",
+        "Google Meet",
+        ("meet",),
+        ("meet.google.com",),
+        note="Meet in a browser is the common client. A Chromium page uses the extension; Firefox and Safari stay pick-cam.",
+        mobile_bundles=("com.google.android.apps.tachyon", "com.google.Meet"),
+    )
+    workplace(
+        "webex",
+        "Cisco Webex",
+        ("webex", "ciscowebex", "cisco-webex"),
+        ("webex.com",),
+        ("com.cisco.webexmeetings",),
+        mobile_bundles=("com.cisco.webexmeetings", "com.cisco.wx2.android"),
+    )
+    workplace(
+        "skype",
+        "Skype",
+        ("skype",),
+        ("web.skype.com",),
+        note="Microsoft retired consumer Skype in May 2025. The profile stays so a leftover desktop client is classified.",
+        mobile_bundles=("com.skype.raider", "com.skype.skype"),
+    )
+    workplace(
+        "slack",
+        "Slack huddles",
+        ("slack",),
+        ("app.slack.com",),
+        ("com.tinyspeck.slackmacgap",),
+        "Huddles use the same camera picker as a Slack call.",
+        ("com.tinyspeck.slack", "com.Slack"),
+    )
+    workplace(
+        "goto",
+        "GoTo Meeting",
+        ("goto", "g2m", "gotomeeting"),
+        ("meet.goto.com", "gotomeeting.com"),
+        mobile_bundles=("com.gotomeeting.GoToMeeting", "com.logmein.gotomeeting"),
+    )
+    workplace(
+        "ringcentral",
+        "RingCentral",
+        ("ringcentral",),
+        ("app.ringcentral.com", "ringcentral.com"),
+        ("com.ringcentral.ringcentral",),
+        mobile_bundles=("com.ringcentral.ringcentral", "com.glip.mobile"),
+    )
+    workplace(
+        "bluejeans",
+        "BlueJeans",
+        ("bluejeans",),
+        ("bluejeans.com",),
+        note="Verizon retired BlueJeans. The service ended in 2024. The profile stays so an old client is classified, not because the service is live.",
+        mobile_bundles=("com.bluejeans.bluejeans",),
+    )
+    workplace(
+        "chime",
+        "Amazon Chime",
+        ("chime", "amazon-chime"),
+        ("app.chime.aws",),
+        mobile_bundles=("com.amazonaws.services.chime", "com.amazon.aws.Chime"),
+    )
+    workplace("zoho", "Zoho Meeting", ("zoho", "zohomeeting"), ("meeting.zoho.com",), mobile_bundles=("com.zoho.meeting",))
+    workplace("dialpad", "Dialpad", ("dialpad",), ("dialpad.com",), mobile_bundles=("co.dialpad.ios", "co.dialpad.android"))
+    workplace(
+        "eightbyeight",
+        "8x8",
+        ("8x8", "eightbyeight", "vod"),
+        ("8x8.vc",),
+        mobile_bundles=("com.eght.meetings",),
+    )
+    workplace("vonage", "Vonage", ("vonage",), ("meetings.vonage.com",), mobile_bundles=("com.vonage.meeting",))
+    workplace(
+        "jabber",
+        "Cisco Jabber",
+        ("jabber", "ciscojabber"),
+        note="Jabber is a desktop and mobile UC client. There is no separate VeilLock capture fork.",
+        mobile_bundles=("com.cisco.jabber", "com.cisco.im"),
+    )
+    workplace("pexip", "Pexip", ("pexip",), ("pexip.me",), note="Pexip web and the desktop app share this profile.")
+    workplace("jitsi", "Jitsi Meet", ("jitsi", "jitsi-meet"), ("meet.jit.si",), note="Jitsi in Chromium uses the extension. A native build that opens /dev/video* can be engulfed.")
+    workplace("whereby", "Whereby", ("whereby",), ("whereby.com",))
+    workplace("nextcloud", "Nextcloud Talk", ("nextcloud", "nextcloud-talk"), ("nextcloud.com",), note="Talk's desktop and web clients. A self-hosted host still matches when the process name is nextcloud.")
+    workplace("bigbluebutton", "BigBlueButton", ("bigbluebutton",), ("bigbluebutton.org",), note="BBB is used in the browser. The HTML5 client is the browser variant.")
+    workplace("adobe-connect", "Adobe Connect", ("connect", "adobeconnect"), ("adobeconnect.com",))
+    workplace("clickmeeting", "ClickMeeting", ("clickmeeting",), ("clickmeeting.com",))
+    workplace("livestorm", "Livestorm", ("livestorm",), ("livestorm.co",), note="Livestorm rooms run in the browser.")
+    workplace("lifesize", "Lifesize", ("lifesize",), ("lifesize.com",), mobile_bundles=("com.lifesize.cloud",))
+    workplace("rainbow", "Alcatel-Lucent Rainbow", ("rainbow",), ("web.openrainbow.com",), mobile_bundles=("com.alcatel.rainbow",))
+
+    def consumer(
+        app_id: str,
+        title: str,
+        processes: tuple[str, ...],
+        hosts: tuple[str, ...] = (),
+        mobile_bundles: tuple[str, ...] = (),
+        note: str = "",
+        camera: tuple[tuple[str, str], ...] | None = None,
+        desktop: bool = True,
+    ) -> None:
+        variants: list[Variant] = []
+        if desktop:
+            variants.append(_native(app_id, processes, (), camera))
+        if hosts:
+            variants.append(_browser(app_id, hosts))
+        if mobile_bundles:
+            variants.append(_mobile(app_id, mobile_bundles, () if desktop else processes))
+        add(_profile(app_id, title, "consumer", note, tuple(variants)))
+
+    consumer(
+        "facetime",
+        "FaceTime",
+        ("facetime",),
+        mobile_bundles=("com.apple.facetime",),
+        note="Mac FaceTime can select a virtual camera. iPhone FaceTime cannot select a third-party camera or microphone. Apple-signed FaceTime cannot be injected into.",
+        camera=_cam(linux="impossible", windows="impossible", darwin="pick-cam"),
+    )
+    consumer(
+        "whatsapp",
+        "WhatsApp",
+        ("whatsapp",),
+        ("web.whatsapp.com",),
+        ("com.whatsapp", "net.whatsapp.WhatsApp"),
+        "WhatsApp desktop can pick a camera when the call screen offers one. The phone app cannot.",
+    )
+    consumer(
+        "signal",
+        "Signal",
+        ("signal",),
+        mobile_bundles=("org.thoughtcrime.securesms", "org.whispersystems.signal"),
+        note="Signal desktop can pick a camera when the call screen offers one. There is no official Signal web calling client. The phone app cannot pick a third-party camera.",
+    )
+    consumer(
+        "discord",
+        "Discord",
+        ("discord",),
+        ("discord.com",),
+        ("com.discord", "com.hammerandchisel.discord"),
+    )
+    consumer(
+        "telegram",
+        "Telegram",
+        ("telegram",),
+        ("web.telegram.org",),
+        ("org.telegram.messenger", "ph.telegra.Telegraph"),
+    )
+    consumer(
+        "messenger",
+        "Messenger",
+        ("messenger",),
+        ("messenger.com",),
+        ("com.facebook.orca", "com.facebook.Messenger"),
+    )
+    consumer(
+        "instagram",
+        "Instagram",
+        ("instagram",),
+        mobile_bundles=("com.instagram.android", "com.burbn.instagram"),
+        note="Instagram calls on a phone cannot select a third-party camera. A desktop window is still pick-cam where the app offers a picker.",
+    )
+    consumer(
+        "snapchat",
+        "Snapchat",
+        ("snapchat",),
+        mobile_bundles=("com.snapchat.android", "com.toyopagroup.picaboo"),
+        note="Snapchat on a phone cannot select a third-party camera.",
+    )
+    consumer("viber", "Viber", ("viber",), mobile_bundles=("com.viber", "com.viber.voip"))
+    consumer("line", "LINE", ("line",), mobile_bundles=("jp.naver.line.android", "jp.naver.line"))
+    consumer("wechat", "WeChat", ("wechat", "weixin"), mobile_bundles=("com.tencent.mm", "com.tencent.xin"))
+    consumer("kakaotalk", "KakaoTalk", ("kakaotalk",), mobile_bundles=("com.kakao.talk",))
+    consumer(
+        "element",
+        "Element",
+        ("element",),
+        ("app.element.io",),
+        ("im.vector.app", "im.vector.riot"),
+        "Element is a Matrix client. The web app in Chromium uses the extension.",
+    )
+    consumer("wire", "Wire", ("wire",), ("app.wire.com",), ("com.wire", "com.wearezeta.zclient.ios"))
+    consumer("vsee", "VSee", ("vsee",), ("vsee.com",), note="VSee clinic and desktop calls. The phone app, where present, cannot take a third-party camera from VeilLock.")
+
+    add(
+        _profile(
+            "obs",
+            "OBS Studio",
+            "creator",
+            "OBS selects VeilLock as a video capture source. An OBS recording of that source is the veil or the scramble, not the AES-256-GCM .veilrec.",
+            (_native("obs", ("obs", "obs64", "obs-studio")),),
+        )
+    )
+    add(
+        _profile(
+            "streamlabs",
+            "Streamlabs",
+            "creator",
+            "Streamlabs Desktop selects a capture device the same way OBS does.",
+            (_native("streamlabs", ("streamlabs", "streamlabs-desktop")),),
+        )
+    )
+    add(
+        _profile(
+            "vmix",
+            "vMix",
+            "creator",
+            "vMix is a Windows compositor. It can add the registered VeilLock camera as an input. It does not get a Linux or macOS engulf path.",
+            (
+                _native(
+                    "vmix",
+                    ("vmix", "vmix64"),
+                    camera=_cam(linux="impossible", windows="win11-vcam", darwin="impossible"),
+                ),
+            ),
+        )
+    )
+    add(
+        _profile(
+            "ecamm",
+            "Ecamm Live",
+            "creator",
+            "Ecamm Live is a macOS app. SIP blocks injection. The camera is a pick. There is no Windows or iOS third-party camera path.",
+            (
+                _native(
+                    "ecamm",
+                    ("ecamm", "ecammlive"),
+                    camera=_cam(linux="impossible", windows="impossible", darwin="pick-cam"),
+                ),
+            ),
+        )
+    )
+    add(
+        _profile(
+            "youtube",
+            "YouTube",
+            "creator",
+            "YouTube live in the browser. Chromium can take the extension. A phone broadcast cannot select VeilLock.",
+            (
+                _browser("youtube", ("youtube.com", "studio.youtube.com")),
+                _mobile("youtube", ("com.google.android.youtube", "com.google.ios.youtube")),
+            ),
+        )
+    )
+    add(
+        _profile(
+            "streamyard",
+            "StreamYard",
+            "creator",
+            "StreamYard runs in the browser. Chromium uses the extension. Firefox and Safari stay on the site camera picker.",
+            (_browser("streamyard", ("streamyard.com",)),),
+        )
+    )
+    add(
+        _profile(
+            "chrome",
+            "Google Chrome",
+            "creator",
+            "Chrome is the browser shell. A calling page is detected from its host and uses that app's profile. Chrome itself is extension-getusermedia.",
+            (_browser("chrome", (), ("chrome", "google-chrome", "chromium", "brave")),),
+        )
+    )
+    add(
+        _profile(
+            "edge",
+            "Microsoft Edge",
+            "creator",
+            "Edge is Chromium. The extension can wrap getUserMedia. A calling page still matches that product's host first.",
+            (_browser("edge", (), ("msedge", "microsoft-edge")),),
+        )
+    )
+    add(
+        _profile(
+            "firefox",
+            "Firefox",
+            "creator",
+            "The VeilLock extension does not run in Firefox. The page uses the site camera picker. Encoded-frame AES-256-GCM is not attached.",
+            (
+                Variant(
+                    variant_id="firefox-browser",
+                    kind="browser",
+                    processes=("firefox",),
+                    bundles=(),
+                    hosts=(),
+                    camera=_cam_browser(),
+                    mic=_mic_browser(),
+                    e2e="insertable-streams",
+                ),
+            ),
+        )
+    )
+    add(
+        _profile(
+            "safari",
+            "Safari",
+            "creator",
+            "The VeilLock extension does not run in Safari. The page uses the site camera picker. Apple-signed Safari is not injected into.",
+            (
+                Variant(
+                    variant_id="safari-browser",
+                    kind="browser",
+                    processes=("safari",),
+                    bundles=("com.apple.safari",),
+                    hosts=(),
+                    camera=_cam_browser(),
+                    mic=_mic_browser(),
+                    e2e="insertable-streams",
+                ),
+            ),
+        )
+    )
+    if len(rows) != 50:
+        raise RuntimeError(f"coverage set drifted to {len(rows)}")
+    return tuple(rows)
+
+
+_BUILTINS: tuple[AppProfile, ...] = _builtin_profiles()
+_REGISTRY: dict[str, AppProfile] = {profile.app_id: profile for profile in _BUILTINS}
+
+
+def builtin_profiles() -> tuple[AppProfile, ...]:
+    return _BUILTINS
+
+
+def profiles() -> tuple[AppProfile, ...]:
+    return tuple(_REGISTRY[key] for key in sorted(_REGISTRY))
+
+
+def register_profile(profile: AppProfile) -> None:
+    """Extension point. Replaces an id already in the registry."""
+    _validate(profile)
+    _REGISTRY[profile.app_id] = profile
+
+
+def remove_profile(app_id: str) -> None:
+    _REGISTRY.pop(app_id, None)
+
+
+def _basename(process: str | None) -> str:
+    if not process:
+        return ""
+    name = process.replace("\\", "/").rstrip("/").split("/")[-1].lower()
+    if name.endswith(".exe"):
+        name = name[:-4]
+    return name
+
+
+def _host(url: str | None) -> str:
+    if not url:
+        return ""
+    text = url.strip()
+    if "://" not in text:
+        text = "https://" + text
+    host = (urlparse(text).hostname or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+    return host
+
+
+def _engine(process: str | None, platform: str | None) -> str | None:
+    name = _basename(process)
+    if name in _BROWSER_PROCESSES:
+        return _BROWSER_PROCESSES[name]
+    # A named desktop process is not a browser, even if the operator passed --platform chromium.
+    if name:
+        return None
+    if platform in {"chromium", "firefox", "safari"}:
+        return platform
+    return None
+
+
+def _resolve_camera(
+    variant: Variant,
+    platform: str,
+    engine: str | None,
+    *,
+    have_vcam: bool,
+    opens_v4l2: bool,
+    sandboxed: bool,
+) -> str:
+    table = dict(variant.camera)
+    if variant.kind == "browser":
+        key = engine
+        if key and key in table:
+            return table[key]
+        if platform in table:
+            return table[platform]
+        return "pick-cam" if platform in {"linux", "windows", "darwin"} else "impossible"
+    choice = table.get(platform, "impossible")
+    if choice == "win11-vcam" and not have_vcam:
+        return "unregistered"
+    if platform == "linux" and variant.kind == "native" and choice == "pick-cam":
+        if sandboxed:
+            return "pick-cam"
+        if opens_v4l2:
+            return "engulf-v4l2"
+    return choice
+
+
+def _resolve_mic(variant: Variant, platform: str, engine: str | None) -> str:
+    table = dict(variant.mic)
+    if variant.kind == "browser":
+        key = engine
+        if key and key in table:
+            return table[key]
+        if platform in table:
+            return table[platform]
+        return "pick-mic" if platform in {"linux", "windows", "darwin"} else "impossible"
+    return table.get(platform, "impossible")
+
+
+def _resolve_e2e(variant: Variant, platform: str, engine: str | None) -> str:
+    if variant.e2e == "insertable-streams":
+        if engine == "chromium" or platform == "chromium":
+            return "insertable-streams"
+        return "none"
+    return variant.e2e
+
+
+def _score(variant: Variant, name: str, host: str, bundle: str, platform: str) -> int:
+    score = 0
+    if host and any(host == item or host.endswith("." + item) for item in variant.hosts):
+        score += 8 + max((len(item) for item in variant.hosts), default=0)
+    if name and name in variant.processes:
+        score += 5
+    if bundle and bundle.lower() in {item.lower() for item in variant.bundles}:
+        score += 5
+    if score == 0:
+        return 0
+    if platform in {"ios", "android"} and variant.kind == "mobile":
+        score += 2
+    elif platform in {"chromium", "firefox", "safari"} and variant.kind == "browser":
+        score += 2
+    elif platform in {"linux", "windows", "darwin"} and variant.kind == "native":
+        score += 1
+    return score
+
+
+def _normalize_platform(platform: str | None) -> str:
+    plat = (platform or "").lower().strip()
+    if plat.startswith("win"):
+        return "windows"
+    if plat in {"mac", "macos", "darwin"}:
+        return "darwin"
+    if plat.startswith("linux"):
+        return "linux"
+    return plat
+
+
+def sniff_capture(
+    process: str | None = None,
+    platform: str | None = None,
+    url: str | None = None,
+    environ: dict[str, str] | None = None,
+) -> CaptureHint:
+    """Classify the camera open. Process names are not the classification."""
+    env = environ or {}
+    sandboxed = bool(env.get("FLATPAK_ID") or env.get("SNAP") or env.get("SNAP_NAME"))
+    engine = _engine(process, _normalize_platform(platform))
+    capture = "unknown"
+    if sandboxed:
+        capture = "portal"
+    elif engine:
+        capture = "getusermedia"
+    elif url and _host(url) and engine:
+        capture = "getusermedia"
+    return CaptureHint(capture=capture, browser=engine, sandboxed=sandboxed)
+
+
+def apply_capabilities(
+    camera: str,
+    mic: str,
+    e2e: str,
+    *,
+    platform: str,
+    hint: CaptureHint,
+    kind: str,
+) -> tuple[str, str, str, str]:
+    """OS facts override a profile. The extra string is appended to the limit."""
+    extra: list[str] = []
+    if platform in {"ios", "android"}:
+        return "impossible", "impossible", "none", STRATEGY_LIMITS["impossible"]
+    if hint.browser in {"firefox", "safari"}:
+        if camera == "extension-getusermedia":
+            camera = "pick-cam"
+        if mic == "extension-getusermedia":
+            mic = "pick-mic"
+        if e2e == "insertable-streams":
+            e2e = "none"
+        extra.append(
+            "Firefox and Safari are not covered by the Chromium extension. "
+            "Encoded-frame AES-256-GCM is not attached."
+        )
+    elif hint.browser == "chromium" and hint.capture == "getusermedia" and kind != "native":
+        camera = "extension-getusermedia"
+        mic = "extension-getusermedia"
+        e2e = "insertable-streams"
+    elif hint.capture == "getusermedia" and kind == "native":
+        extra.append(
+            "The Chromium extension wraps a browser tab. It does not wrap a desktop process that embeds WebRTC."
+        )
+    if hint.sandboxed or hint.capture in {"pipewire", "portal", "flatpak", "snap"}:
+        if camera == "engulf-v4l2":
+            camera = "pick-cam"
+        extra.append("Flatpak, Snap, PipeWire, and the portal are not engulfed.")
+    elif hint.capture == "v4l2" and platform == "linux" and camera in {"pick-cam", "engulf-v4l2"}:
+        camera = "engulf-v4l2"
+    if hint.capture == "directshow":
+        camera = "directshow-only"
+        extra.append(STRATEGY_LIMITS["directshow-only"])
+    elif hint.capture == "avfoundation" or (platform == "darwin" and camera == "engulf-v4l2"):
+        if camera != "extension-getusermedia":
+            camera = "pick-cam"
+        extra.append("macOS is pick-cam. SIP and the hardened runtime block injection. Apple-signed FaceTime cannot be injected into.")
+    if platform == "windows" and camera == "win11-vcam":
+        if hint.windows_build is not None and hint.windows_build < 22000:
+            camera = "unregistered"
+            extra.append(
+                "Windows 10 and builds before 22000 have no MFCreateVirtualCamera. No camera was registered."
+            )
+        elif not hint.have_vcam:
+            camera = "unregistered"
+    return camera, mic, e2e, " ".join(extra)
+
+
+def default_strategies(platform: str, hint: CaptureHint) -> tuple[str, str, str]:
+    """Safe report for an app that has no profile. Does not claim engulf or a registered camera."""
+    if platform in {"ios", "android"}:
+        return "impossible", "impossible", "none"
+    if hint.browser == "chromium":
+        return "extension-getusermedia", "extension-getusermedia", "insertable-streams"
+    if hint.browser in {"firefox", "safari"}:
+        return "pick-cam", "pick-mic", "none"
+    if platform == "linux":
+        if hint.sandboxed or hint.capture in {"pipewire", "portal", "flatpak", "snap"}:
+            return "pick-cam", "linux-veillock-mic", "veillock-link"
+        if hint.capture == "v4l2":
+            return "engulf-v4l2", "linux-veillock-mic", "veillock-link"
+        return "pick-cam", "linux-veillock-mic", "veillock-link"
+    if platform == "windows":
+        if hint.capture == "directshow":
+            return "directshow-only", "vb-cable", "veillock-link"
+        if hint.windows_build is not None and hint.windows_build < 22000:
+            return "unregistered", "vb-cable", "veillock-link"
+        if hint.have_vcam:
+            return "win11-vcam", "vb-cable", "veillock-link"
+        return "unregistered", "vb-cable", "veillock-link"
+    if platform == "darwin":
+        return "pick-cam", "blackhole", "veillock-link"
+    return "pick-cam", "pick-mic", "veillock-link"
+
+
+def operator_command(camera: str, platform: str, app: str | None = None) -> str:
+    """One command for the strategy. It does not launch the call by itself except engulf."""
+    target = app or "<app>"
+    if camera == "engulf-v4l2":
+        return f"veillock engulf -- {target}"
+    if camera == "win11-vcam":
+        return f"veillock engulf -- {target}"
+    if camera == "extension-getusermedia":
+        return "Open the join link in Chrome or Edge with the VeilLock extension installed."
+    if camera == "pick-cam" and platform == "darwin":
+        return "veillock wrap --mic    then select VeilLock and BlackHole 2ch if BlackHole is installed."
+    if camera == "pick-cam":
+        return "veillock wrap --mic    then select VeilLock in the app."
+    if camera == "unregistered":
+        return (
+            "Build windows/vcam on Windows 11 build 22000 or newer, then veillock engulf -- <app>. "
+            "Until then no VeilLock camera is registered."
+        )
+    if camera == "directshow-only":
+        return (
+            "No VeilLock camera appears in a DirectShow-only picker. "
+            "Use a build that enumerates Media Foundation cameras, or veillock link beside the call."
+        )
+    if camera == "impossible":
+        return "No command wraps this client. iPhone FaceTime cannot select a third-party camera."
+    return "veillock wrap --mic"
+
+
+def format_detection(found: Detection) -> str:
+    matched = "yes" if found.matched else "no"
+    return (
+        f"schema={found.schema} matched={matched}\n"
+        f"{found.title} ({found.variant_id}) platform={found.platform or 'unspecified'}\n"
+        f"camera={found.camera}\nmic={found.mic}\ne2e={found.e2e}\n"
+        f"command={found.command}\n"
+        f"{found.note}\n{found.limit}\n{found.meeting}\n"
+    )
+
+
+def _hint_from_args(
+    process: str | None,
+    platform: str | None,
+    url: str | None,
+    *,
+    have_vcam: bool | None,
+    opens_v4l2: bool,
+    sandboxed: bool,
+    capture: str | None,
+    windows_build: int | None,
+    environ: dict[str, str] | None,
+) -> CaptureHint:
+    from veillock.wincam import helper_present
+
+    hint = sniff_capture(process, platform, url, environ)
+    if sandboxed:
+        hint = replace(hint, sandboxed=True, capture="portal" if hint.capture == "unknown" else hint.capture)
+    if capture:
+        if capture not in CAPTURES:
+            raise ValueError(f"unknown capture {capture}")
+        hint = replace(hint, capture=capture)
+    elif opens_v4l2 and hint.capture == "unknown" and not hint.sandboxed:
+        hint = replace(hint, capture="v4l2")
+    if hint.sandboxed and hint.capture == "v4l2":
+        hint = replace(hint, capture="portal")
+    vcam = helper_present() if have_vcam is None else bool(have_vcam)
+    return replace(hint, have_vcam=vcam, windows_build=windows_build)
+
+
+def detect(
+    process: str | None = None,
+    platform: str | None = None,
+    bundle_id: str | None = None,
+    url: str | None = None,
+    *,
+    have_vcam: bool | None = None,
+    opens_v4l2: bool = False,
+    sandboxed: bool = False,
+    capture: str | None = None,
+    windows_build: int | None = None,
+    environ: dict[str, str] | None = None,
+) -> Detection:
+    """Pick a profile, then let the capture hint override it. Unknown apps get a safe default."""
+    plat = _normalize_platform(platform)
+    hint = _hint_from_args(
+        process,
+        plat,
+        url,
+        have_vcam=have_vcam,
+        opens_v4l2=opens_v4l2,
+        sandboxed=sandboxed,
+        capture=capture,
+        windows_build=windows_build,
+        environ=environ,
+    )
+    name = _basename(process)
+    host = _host(url)
+    bundle = (bundle_id or "").strip()
+    engine = hint.browser or _engine(process, plat)
+    best: tuple[int, AppProfile, Variant] | None = None
+    for profile in _REGISTRY.values():
+        for variant in profile.variants:
+            score = _score(variant, name, host, bundle, plat or engine or "")
+            if score <= 0:
+                continue
+            if best is None or score > best[0]:
+                best = (score, profile, variant)
+    if best is None:
+        camera, mic, e2e = default_strategies(plat, hint)
+        camera, mic, e2e, extra = apply_capabilities(camera, mic, e2e, platform=plat, hint=hint, kind="unknown")
+        note = (
+            f"No profile matched. Schema {PROFILE_SCHEMA} safe default comes from how the camera is opened, "
+            "not from a per-app fork. Nothing was captured and no camera was registered. "
+            "Add a profile with register_profile when you know the app."
+        )
+        app_id, title, variant_id, kind, matched = "unknown", "Unknown app", "unknown-default", "unknown", False
+        profile_note = note
+    else:
+        _score_value, profile, variant = best
+        camera = _resolve_camera(
+            variant,
+            plat,
+            engine,
+            have_vcam=hint.have_vcam,
+            opens_v4l2=hint.capture == "v4l2",
+            sandboxed=hint.sandboxed,
+        )
+        mic = _resolve_mic(variant, plat, engine)
+        e2e = _resolve_e2e(variant, plat, engine)
+        camera, mic, e2e, extra = apply_capabilities(
+            camera, mic, e2e, platform=plat, hint=hint, kind=variant.kind
+        )
+        app_id, title, variant_id, kind = profile.app_id, profile.title, variant.variant_id, variant.kind
+        matched = True
+        profile_note = profile.note
+    limit = " ".join(
+        part
+        for part in (
+            STRATEGY_LIMITS.get(camera, ""),
+            STRATEGY_LIMITS.get(mic, ""),
+            STRATEGY_LIMITS.get(e2e, ""),
+            extra,
+        )
+        if part
+    )
+    shown = name or host or app_id
+    return Detection(
+        app_id=app_id,
+        title=title,
+        variant_id=variant_id,
+        kind=kind,
+        platform=plat,
+        camera=camera,
+        mic=mic,
+        e2e=e2e,
+        note=profile_note,
+        limit=limit,
+        matched=matched,
+        schema=PROFILE_SCHEMA,
+        command=operator_command(camera, plat, shown),
+        meeting=MEETING,
+    )
+
+
+def _native_camera(profile: AppProfile, platform: str) -> str:
+    strategy = "no desktop client"
+    for variant in profile.variants:
+        if variant.kind == "native":
+            strategy = dict(variant.camera).get(platform, "impossible")
+            break
+    if strategy == "win11-vcam":
+        return "win11-vcam when the registrar is running, otherwise unregistered"
+    if strategy == "pick-cam" and platform == "linux":
+        return "pick-cam (engulf-v4l2 only if this process opens /dev/video* and is not sandboxed)"
+    return strategy
+
+
+def _line(profile: AppProfile) -> str:
+    kinds = ", ".join(variant.kind for variant in profile.variants)
+    phone = "impossible" if any(variant.kind == "mobile" for variant in profile.variants) else "no phone client"
+    browser = "yes" if any(variant.kind == "browser" for variant in profile.variants) else "no"
+    return (
+        f"{profile.title} [{kinds}]. "
+        f"Desktop camera linux={_native_camera(profile, 'linux')}; "
+        f"windows={_native_camera(profile, 'windows')}; "
+        f"darwin={_native_camera(profile, 'darwin')}. "
+        f"Browser={browser}. Phone={phone}. "
+        f"Mic on desktop: VeilLock Microphone, BlackHole 2ch, or CABLE Output. "
+        f"{profile.note}"
+    ).strip()
+
+
+def coverage_guide_text() -> str:
+    lines = [
+        "",
+        "App coverage — one profile registry",
+        "------------------------------------",
+        "This is a coverage set of widely used call and video apps, not a market-share ranking.",
+        "No user counts are stated here. A new app is a profile passed to register_profile, plus a test.",
+        "Profile schema is 1. A profile with any other schema is refused and not loaded.",
+        "There is no per-app capture fork. How the app opens the camera outranks a process name.",
+        "An unknown app gets a safe default and a report. Nothing is captured and no camera is registered.",
+        "Strategies: engulf-v4l2, win11-vcam, unregistered, directshow-only, extension-getusermedia, pick-cam, impossible.",
+        "The same meeting rules cover Teams, Meet, Zoom, Webex, Slack huddles, and Discord.",
+        MEETING,
+        "True AES-256-GCM between VeilLock peers is veillock link, or Chromium insertable streams when both browsers have the extension and the key.",
+        "The call app's own picture stays a veil or a keyed scramble, which is not AES-256-GCM.",
+        "Windows microphone: CABLE Output if VB-Audio Virtual Cable is installed. VeilLock does not create that microphone.",
+        "iPhone FaceTime cannot select a third-party camera.",
+        "Windows 11 camera: friendly name VeilLock, picker text VeilLock Windows Virtual Camera, and only while veilcam-register.exe is running. VeilLock does not hook. Other cameras remain.",
+        "Windows 10 and DirectShow-only apps do not get that camera. Flatpak, Snap, and PipeWire are not engulfed. Firefox and Safari stay pick-cam. SIP blocks macOS injection.",
+        "",
+    ]
+    for profile in _BUILTINS:
+        lines.append(f"{profile.app_id}: {_line(profile)}")
+    lines.append("")
+    return "\n".join(lines)

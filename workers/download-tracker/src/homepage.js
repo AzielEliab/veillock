@@ -12,7 +12,7 @@ const DOI = "10.5281/zenodo.21431659";
 const DOI_URL = "https://doi.org/10.5281/zenodo.21431659";
 const ZENODO = "https://zenodo.org/records/21431659";
 const DESC =
-  "VeilLock is consent-gated camera protection via AZ-OS by Aziel Eliab. Your camera and video stay veiled unless you turn obfuscation off or accept a call through AZ-OS. VeilLock does not inject into FaceTime, Zoom, Meet, Teams, or Skype.";
+  "VeilLock is consent-gated camera protection via AZ-OS by Aziel Eliab. Your camera and video stay veiled unless you turn obfuscation off or accept a call through AZ-OS. VeilLock does not attach to a running FaceTime, Zoom, Meet, Teams, or Skype process.";
 
 function esc(value) {
   return String(value == null ? "" : value)
@@ -211,7 +211,7 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
     </div>
   </header>
 
-  <p class="banner" role="note"><strong>Honest limit.</strong> VeilLock does not inject into FaceTime, Zoom, Meet, Teams, or Skype. iOS FaceTime cannot pick a third-party camera. This page is a consent desk and veil recipe — not a virtual camera and not a call interceptor. YOUR camera/screen only. You control the lift.</p>
+  <p class="banner" role="note"><strong>Honest limit.</strong> VeilLock does not attach to a running FaceTime, Zoom, Meet, Teams, or Skype process. iOS FaceTime cannot pick a third-party camera. This page is a consent desk and veil recipe — not a virtual camera and not a call interceptor. YOUR camera/screen only. You control the lift.</p>
   <div class="statusbar" id="status-bar">
     <span class="chip" id="chip-health">Checking VeilLock…</span>
     <span class="chip warn">Hosted receipt · local tether</span>
@@ -291,7 +291,7 @@ export function renderHomepage({ downloads, views, breakdownHtml, github }) {
 
     <article class="card wide" id="apps-desk">
       <h2>Call apps — your device only</h2>
-      <p class="help">These are local steps. VeilLock does not inject into the app. After install, the desktop tether can advertise a camera named VeilLock.</p>
+      <p class="help">These are local steps. VeilLock does not attach to an app that is already running. After install, the desktop tether can advertise a camera named VeilLock. Join and engulf planning run on the local desk (veillock ui at 127.0.0.1:8761). This hosted page does not join a call or register a camera.</p>
       <div class="apps" id="app-picks">
         <button type="button" class="ghost" data-app="zoom" aria-pressed="false">Zoom</button>
         <button type="button" class="ghost" data-app="meet" aria-pressed="false">Meet</button>
