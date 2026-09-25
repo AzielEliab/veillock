@@ -39,8 +39,7 @@ Python 3.10+, numpy, cryptography, pytest. No hardware. Fixtures in
 6. **Do not gut crypto to make a test pass.** If a threshold is too
    tight (for example decoy entropy), loosen the test.
 7. **Door vs local op.** `/v1/mesh/*` PROXY to aziel-runtime. Local ops are `/v1/{op}` only.
-   Suite mesh default OFF; QNM rollup live|locked|isolated; no Node Gate;
-   no auto-heal; not anonymity.
+   Suite mesh default OFF; QNM rollup live|locked|isolated.
 
 ## Where to change things
 
@@ -54,7 +53,7 @@ Python 3.10+, numpy, cryptography, pytest. No hardware. Fixtures in
 - Camera / screen tether: `veillock/sources.py`, `veillock/tether.py`
 - New behavior needs a synthetic test that fails without the change.
   Tether tests mock VideoCapture and pyvirtualcam; no camera required.
-- Suite mesh / QNM Live Nodes: `workers/download-tracker/src/mesh.js` (`/v1/mesh/*` PROXY to aziel-runtime; QNS-CD-1.0 hub cite / Worker mesh cross-map only — not a Softwares-tab product, no public qnsd proxy).
+- Suite mesh / QNM Live Nodes: `workers/download-tracker/src/mesh.js` (`/v1/mesh/*` PROXY to aziel-runtime; QNS-CD-1.0 hub cite / Worker mesh cross-map).
 
 ## Reporting downloads from a fork
 

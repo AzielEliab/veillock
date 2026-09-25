@@ -21,14 +21,14 @@ assert(body.code === "MESH-OK", "expected MESH-OK, got " + JSON.stringify(body.c
 assert(body.enabled === false, "expected enabled:false, got " + JSON.stringify(body.enabled));
 assert(QNS_CD_SPEC === "QNS-CD-1.0", "QNS_CD_SPEC");
 assert(QNS_CD && QNS_CD.spec === "QNS-CD-1.0", "QNS_CD.spec");
-assert(QNS_CD.softwares_tab === false, "QNS-CD is not a Softwares-tab product");
-assert(QNS_CD.public_qnsd_proxy === false, "no public qnsd proxy");
-assert(QNS_CD.node_gate === false, "no Node Gate");
+assert(QNS_CD.softwares_tab === false, "QNS-CD softwares_tab flag");
+assert(QNS_CD.public_qnsd_proxy === false, "QNS-CD public_qnsd_proxy flag");
+assert(QNS_CD.node_gate === false, "QNS-CD node_gate flag");
 assert(MESH_DEFAULT_OFF === true, "mesh stays default OFF");
 assert(String(MESH_NOTE).includes("QNS-CD-1.0"), "MESH_NOTE must cite QNS-CD-1.0");
 assert(body.qns_cd_spec === "QNS-CD-1.0", "status payload qns_cd_spec");
 assert(body.qns_cd && body.qns_cd.spec === "QNS-CD-1.0", "status payload qns_cd");
-assert(body.qns_cd.public_qnsd_proxy === false, "status payload no public qnsd proxy");
+assert(body.qns_cd.public_qnsd_proxy === false, "status payload public_qnsd_proxy flag");
 
 const enable = await call("/v1/mesh/enable", {
   method: "POST",
@@ -54,5 +54,5 @@ const unknownBody = await unknown.json();
 assert(unknownBody.code === "MESH-UNKNOWN", "expected MESH-UNKNOWN, got " + JSON.stringify(unknownBody.code));
 
 console.log("GET /v1/mesh/status MESH-OK enabled:false");
-console.log("QNS-CD-1.0 stamped on status + nodes; no public qnsd proxy");
+console.log("QNS-CD-1.0 stamped on status + nodes; hub cite / Worker mesh cross-map");
 console.log("mesh proxy smoke ok");

@@ -1,6 +1,6 @@
 ---
 name: VeilLock
-description: Use when calling VeilLock hosted /v1 or installing the local package. Dual surface: Worker /v1 + catalog MCP. This Worker /v1/mesh/* PROXY to aziel-runtime via AZIEL_RUNTIME. Suite mesh default OFF. QNM-BUILD-1.0 live|locked|isolated. QNS-CD-1.0 hub cite / Worker mesh cross-map (photon QNS1 packet transfer; qnm-node qnsd + aziel-runtime). Not a Softwares-tab product. No public qnsd proxy. No Node Gate. No auto-heal. Not anonymity. Consent-gated camera protection via AZ-OS. Author Aziel Eliab.
+description: Use when calling VeilLock hosted /v1 or installing the local package. Dual surface: Worker /v1 + catalog MCP. This Worker /v1/mesh/* PROXY to aziel-runtime via AZIEL_RUNTIME. Suite mesh default OFF. QNM-BUILD-1.0 live|locked|isolated. QNS-CD-1.0 hub cite / Worker mesh cross-map (photon QNS1 packet transfer; qnm-node qnsd + aziel-runtime). Consent-gated camera protection via AZ-OS. Author Aziel Eliab.
 ---
 
 # VeilLock
@@ -9,7 +9,7 @@ Consent-gated camera protection via AZ-OS. Author: **Aziel Eliab**.
 
 **THIS IS:** a privacy veil on the user's own camera and video. The feed is naturally obfuscated unless (a) the user turns obfuscation off, or (b) the user accepts a call through AZ-OS.
 
-**THIS IS NOT:** a VPN, Tor, anonymous relay, or a claim of untraceable origin. Hosted `/v1` does not increment downloads or views. Hosted AZ-OS halt is a token, not killing the caller OS.
+Hosted `/v1` leaves download and view counters unchanged. Hosted AZ-OS halt is a token.
 
 Always send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent.
 
@@ -22,17 +22,17 @@ Always send `User-Agent: Mozilla/5.0`. Cloudflare Workers may 403 an empty agent
 - Suite mesh: `GET https://veillock-download-tracker.vibelock.workers.dev/v1/mesh` (PROXY; default OFF; QNS-CD-1.0 cite)
 - AZ-OS: https://azos-download-tracker.vibelock.workers.dev/v1/status
 
-Ops (do **not** increment downloads or views):
+Ops (download and view counters stay unchanged):
 
 | Method | Path | What |
 |--------|------|------|
 | GET | `/v1/health` | Liveness. AZ-OS hook present. |
 | GET | `/v1/skill` | This markdown. |
-| GET | `/v1/mesh` | PROXY suite mesh status. Default OFF. QNM live|locked|isolated. QNS-CD-1.0 cross-map (photon QNS1). Never enables. No public qnsd proxy. |
+| GET | `/v1/mesh` | PROXY suite mesh status. Default OFF. QNM live|locked|isolated. QNS-CD-1.0 cross-map (photon QNS1). GET leaves radios as they are. |
 | GET | `/v1/mesh/nodes` | PROXY Live Nodes roster (5-minute presence). Payload includes QNS-CD-1.0 cite. |
-| POST | `/v1/mesh/{enable,disable,join,heartbeat,leave,broadcast}` | PROXY. Bearer required to enable. No auto-heal. Anon-broadcast is not a publish path. |
-| GET/POST | `/v1/apps` | Local-app steps. Does not inject into FaceTime, Zoom, Meet, Teams, or Skype. |
-| POST | `/v1/pulse` | PulseCheck. Fail → halt/noise, never plaintext. |
+| POST | `/v1/mesh/{enable,disable,join,heartbeat,leave,broadcast}` | PROXY. Bearer required to enable. Broadcast returns a SHA-256 receipt. |
+| GET/POST | `/v1/apps` | Local-app steps. Pick the VeilLock camera in FaceTime (Mac), Zoom, Meet, Teams, or Skype after the desktop tether is running. |
+| POST | `/v1/pulse` | PulseCheck. Fail → halt/noise. |
 | POST | `/v1/obfuscate-preview` | Natural camera/video veil recipe. |
 | POST | `/v1/azos-hook` | Consent-gate status. |
 | POST | `/v1/call-accept` | User accepted a call through AZ-OS (receipt). |
@@ -68,7 +68,7 @@ veillock doctor
 veillock azos
 ```
 
-Then open http://127.0.0.1:8761 (loopback only). Worker homepage Live Nodes strip polls `GET /v1/mesh` (default OFF; QNS-CD-1.0 cite; no public qnsd proxy).
+Then open http://127.0.0.1:8761 (loopback only). Worker homepage Live Nodes strip polls `GET /v1/mesh` (default OFF; QNS-CD-1.0 cite).
 
 Counted download (gzip HTTP 200, no 302): https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.2.0.tar.gz
 GitHub: https://github.com/AzielEliab/veillock

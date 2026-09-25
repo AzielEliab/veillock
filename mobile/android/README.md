@@ -1,7 +1,7 @@
 # Android platform folder
 
-This tree was authored without the Flutter SDK on PATH, so the Gradle
-project is not generated here.
+This tree was authored without the Flutter SDK on PATH, so these
+folders are skeletons until `flutter create` runs.
 
 From the parent `mobile/` directory:
 

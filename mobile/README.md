@@ -4,7 +4,7 @@ A local camera preview. The veil stays on until you change it under Advanced.
 
 **Author:** Aziel Eliab
 
-The phone overlay is a visual veil. AES-256-GCM runs in the Python desktop package.
+**This overlay is the mobile obfuscation surface.** AES-256-GCM runs in the Python desktop package.
 
 Application id: `com.azieeliab.veillock`
 
@@ -26,7 +26,7 @@ After `flutter create`, add the camera permission in `android/README.md` and `io
 
 ## Desktop package
 
-The Python package is the counted desktop download: https://veillock-download-tracker.vibelock.workers.dev/
+The Python package is the counted desktop download and the AES-256-GCM engine: https://veillock-download-tracker.vibelock.workers.dev/
 
 GitHub: https://github.com/AzielEliab/veillock
 
