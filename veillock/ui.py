@@ -720,19 +720,18 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(raw.decode("utf-8") or "{}") if raw else {}
             if not isinstance(body, dict):
                 body = {}
+            from veillock.surfaces import sandbox_environ
+
             windows_build = body.get("windows_build")
             self._json(
                 200,
                 join_plan(
-                    str(body.get("url") or "") or None,
+                    body.get("url") if body.get("url") else None,
                     process=body.get("process") or None,
                     platform=body.get("platform") or None,
                     bundle_id=body.get("bundle") or body.get("bundle_id") or None,
-                    have_vcam=True if body.get("vcam") or body.get("have_vcam") else None,
-                    opens_v4l2=bool(body.get("v4l2")),
-                    sandboxed=bool(body.get("sandboxed")),
-                    capture=body.get("capture") or None,
-                    windows_build=int(windows_build) if windows_build not in (None, "") else None,
+                    windows_build=windows_build if windows_build not in ("",) else None,
+                    environ=sandbox_environ(),
                 ),
             )
         except Exception as exc:  # noqa: BLE001
@@ -755,14 +754,12 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body, dict):
                 body = {}
             windows_build = body.get("windows_build")
-            flagged = body.get("have_vcam", body.get("vcam"))
             self._json(
                 200,
                 engulf_plan(
                     str(body.get("app") or "zoom"),
                     platform=body.get("platform") or None,
-                    have_vcam=True if flagged else None,
-                    windows_build=int(windows_build) if windows_build not in (None, "") else None,
+                    windows_build=windows_build if windows_build not in ("",) else None,
                 ),
             )
         except Exception as exc:  # noqa: BLE001

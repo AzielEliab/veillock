@@ -33,5 +33,13 @@
     "engulf_plan_does_not_launch": true,
     "increments_downloads": false,
     "hosted_worker_does_not_register_a_camera": true
-  }
+  },
+  "orchestration_host": {
+    "built": false,
+    "mcp": false,
+    "node_mesh": false,
+    "forensic": false,
+    "note": "Not built in this package. A later host may read the plans below. It must not treat a plan as a launch, a camera registration, a key, or a download increment."
+  },
+  "safe_calls": ["describe", "join_plan", "engulf_plan", "suite_tile"]
 }

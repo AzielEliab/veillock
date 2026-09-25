@@ -122,6 +122,7 @@ def test_ui_wrap_preview_and_record_demo() -> None:
 
 def test_ui_join_engulf_and_suite_stay_on_the_plan() -> None:
     import json
+    import urllib.error
     import urllib.request
 
     httpd, thread = _start()
@@ -170,8 +171,52 @@ def test_ui_join_engulf_and_suite_stay_on_the_plan() -> None:
         assert tile["implemented_in_azinterface_repo"] is False
         assert tile["honesty"]["aes_on_call_path"] is False
         assert tile["honesty"]["increments_downloads"] is False
+        assert tile["orchestration_host"]["built"] is False
+        assert tile["orchestration_host"]["mcp"] is False
+        assert "join_plan" in tile["safe_calls"]
         assert "wrap" in tile["entries"]
         assert "play" in tile["entries"]
+        lied = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/join",
+            data=json.dumps(
+                {
+                    "process": "Zoom.exe",
+                    "platform": "windows",
+                    "have_vcam": True,
+                    "capture": "media-foundation",
+                }
+            ).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(lied, timeout=5) as res:
+            honest = json.loads(res.read().decode("utf-8"))
+        assert honest["camera"] == "unregistered"
+        assert honest["registered_camera"] is False
+        assert honest["returns_key"] is False
+        assert honest["lifts_veil"] is False
+        assert "argv" not in honest
+        forged = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/engulf/plan",
+            data=json.dumps(
+                {"app": "zoom;id", "platform": "linux", "have_vcam": True, "video_device": "/etc/passwd"}
+            ).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            urllib.request.urlopen(forged, timeout=5)
+            raise AssertionError("shell-looking app was accepted")
+        except urllib.error.HTTPError as exc:
+            refused = json.loads(exc.read().decode("utf-8"))
+            assert exc.code == 400
+        assert refused["ok"] is False
+        assert refused["executed"] is False
+        assert "argv" not in refused
+        assert "argv" not in plan
+        assert plan["returns_argv"] is False
+        assert plan["returns_key"] is False
+        assert plan["launch"] == "cli-only"
     finally:
         httpd.shutdown()
         httpd.server_close()

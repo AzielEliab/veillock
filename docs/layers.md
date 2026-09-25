@@ -34,4 +34,18 @@ surfaces.py          one plan object; does not launch or register
 
 A gallery (Teams, Meet, Zoom, Webex, Slack huddles, Discord) is one outgoing veil or scramble. Screen share is outside the camera wrap. PulseCheck failure is veil or noise, never plaintext.
 
+The loopback desk does not accept a caller `have_vcam`, capture hint, or sandbox flag. Those would let a page invent a camera. `engulf_plan` drops `argv` and `env`. A video node has to look like `/dev/videoN`. Process names and app tokens are one line, with no shell metacharacters, so a report cannot be forged into a command. The desk reads `FLATPAK_ID`, `SNAP`, and `SNAP_NAME` from this process only.
+
+## What a later host can call
+
+No MCP, node-mesh, forensic, or orchestration engine is in this repository. `suite/azinterface-tile.json` says `orchestration_host.built` is false. A later host in another repository can call only:
+
+| Call | Effect |
+|------|--------|
+| `describe` / `join_plan` | Text or JSON report. `joined_call`, `registered_camera`, `returns_key`, `lifts_veil`, and `writes_recording` stay false. |
+| `engulf_plan` | Whether engulf could start. `executed` is false. The body has no `argv` and no environment. Launch remains `veillock engulf`, which plans again before `exec`. |
+| `suite_tile` | The handoff document. It does not boot AZInterface. |
+
+It must not shell the `command` string, pass `have_vcam` unless the helper file was actually seen, read recording keys out of a `.veilrec`, or point `/v1/wrap` at the download counter. Consent and PulseCheck stay in the engine. A failed check is veil or noise. AES-256-GCM recordings stay sealed. Wrong keys open nothing.
+
 Lamb Lens order: Service, then Clarity, then Peace. Identity is Aziel Eliab only.

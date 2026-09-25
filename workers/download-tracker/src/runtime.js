@@ -322,7 +322,7 @@ export function wrapContract() {
     identity: "Aziel Eliab only",
     surfaces: {
       layer: "Engine, then strategy adapters, then one plan object, then CLI, loopback UI, extension, this worker, and the AZInterface tile",
-      loopback_ui: "veillock ui binds 127.0.0.1:8761. Plan this link and Plan engulf call the same adapter as the CLI. The desk seals and plays an AES-256-GCM recording in memory. It does not launch an app or join a call.",
+      loopback_ui: "veillock ui binds 127.0.0.1:8761. Plan this link and Plan engulf call the same adapter as the CLI. The desk ignores a caller have_vcam or capture hint, and an engulf plan has no command line. The desk seals and plays an AES-256-GCM recording in memory. It does not launch an app, join a call, return a key, or lift the veil.",
       entries: ["wrap", "engulf", "join", "link", "play", "record"],
       cli: "veillock wrap, engulf, join, link, play, record, compat. Join and compat print the coverage report. Engulf launches only from the CLI when the plan says it can.",
       extension: "Chromium getUserMedia veil, and encoded-frame AES-256-GCM when both peers share the key. Not Firefox or Safari.",
