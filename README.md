@@ -1,71 +1,54 @@
 # VeilLock
 
-Consent-gated camera protection via **AZ-OS**. Your camera and video
-stay under a natural privacy veil unless **you** turn obfuscation off
-or **you** accept a call through AZ-OS.
+VeilLock keeps your camera veiled until you lift it.
 
-**Author:** Aziel Eliab
-**Date:** September 2026
-**License:** [Apache-2.0](LICENSE)
+**Author:** Aziel Eliab  
+**License:** [Apache-2.0](LICENSE)  
 **Version:** 0.2.0
 
-> Render → encrypt → decode locally → display.
-> Camera and video are veiled by default. You control the lift.
+## Start
 
-See the spec: [docs/whitepaper.md](docs/whitepaper.md).
-How to contribute: [CONTRIBUTING.md](CONTRIBUTING.md).
+1. Install.
 
-**Forks are welcome and always allowed.**
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -e .
+   ```
 
+2. Open the app.
 
-## One-click install
+   ```bash
+   veillock ui
+   ```
+
+3. Open http://127.0.0.1:8761 and press **Start camera veil**.
+
+`veillock doctor` checks this computer. `veillock` with no arguments prints the same next steps. `veillock --help` lists commands.
+
+One-click install (counted tarball, then the same app):
 
 ```bash
 curl -fsSL https://veillock-download-tracker.vibelock.workers.dev/install.sh | bash
 ```
 
-The script curls the **counted** tarball from this project's Worker
-(`/download`, User-Agent `Mozilla/5.0`), extracts, makes a venv, and
-`pip install -e .`. Then run `veillock ui`.
+Same three steps are in [RUN.txt](RUN.txt). Spec: [docs/whitepaper.md](docs/whitepaper.md). Forks are welcome.
 
-Or open the live VeilLock desk
-(consent, PulseCheck, veil compose, call-app steps, plus Download / one-click install):
-https://veillock-download-tracker.vibelock.workers.dev/
+## Counted download
 
-## Counted download (Cloudflare Worker)
+The Worker serves the gzip itself (HTTP 200). GitHub releases are a mirror.
 
-**This is the counted download.** GitHub releases exist as a mirror.
-The Worker serves the gzip itself (HTTP 200, no 302 to GitHub).
-
-# → [https://veillock-download-tracker.vibelock.workers.dev/](https://veillock-download-tracker.vibelock.workers.dev/) ←
-
-Direct tarball (also counted):
-[veillock-0.2.0.tar.gz](https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.2.0.tar.gz)
-
-- Live count JSON: [https://veillock-download-tracker.vibelock.workers.dev/stats](https://veillock-download-tracker.vibelock.workers.dev/stats)
+- Page: [https://veillock-download-tracker.vibelock.workers.dev/](https://veillock-download-tracker.vibelock.workers.dev/)
+- Tarball: [veillock-0.2.0.tar.gz](https://veillock-download-tracker.vibelock.workers.dev/download?asset=veillock-0.2.0.tar.gz)
+- Install script: [https://veillock-download-tracker.vibelock.workers.dev/install.sh](https://veillock-download-tracker.vibelock.workers.dev/install.sh)
 - OpenAPI: [https://veillock-download-tracker.vibelock.workers.dev/openapi.json](https://veillock-download-tracker.vibelock.workers.dev/openapi.json)
 - Skill: [https://veillock-download-tracker.vibelock.workers.dev/v1/skill](https://veillock-download-tracker.vibelock.workers.dev/v1/skill)
 - Suite mesh proxy: [https://veillock-download-tracker.vibelock.workers.dev/v1/mesh](https://veillock-download-tracker.vibelock.workers.dev/v1/mesh) — default OFF; QNM live / locked / isolated; QNS-CD-1.0 hub cite (photon QNS1 packet transfer; no public qnsd proxy)
-- One-click install: [https://veillock-download-tracker.vibelock.workers.dev/install.sh](https://veillock-download-tracker.vibelock.workers.dev/install.sh)
 - GitHub: [https://github.com/AzielEliab/veillock](https://github.com/AzielEliab/veillock)
-
 - DOI: [10.5281/zenodo.21431659](https://doi.org/10.5281/zenodo.21431659)
 - Zenodo: [https://zenodo.org/records/21431659](https://zenodo.org/records/21431659)
 
-Isolated counter: Worker `veillock-download-tracker`, KV `VEILLOCK_DOWNLOADS`. Not mixed with any other product. `/v1` does not increment downloads.
-
-
-## Quick start
-
-```bash
-pip install -e ".[dev]"
-veillock version
-veillock ui
-```
-
-Open http://127.0.0.1:8761 (loopback only). No CDN, no telemetry.
-
-Counted download: [https://veillock-download-tracker.vibelock.workers.dev/](https://veillock-download-tracker.vibelock.workers.dev/)
+Isolated counter: Worker `veillock-download-tracker`, KV `VEILLOCK_DOWNLOADS`. `/v1` does not increment downloads.
 
 ## AZ-OS hook
 
@@ -78,8 +61,8 @@ feed.
 - **Call ends:** the veil returns unless you left obfuscation off.
 
 You control both paths. Hosted AZ-OS halt is a token, not killing this
-computer. Local UI: **Accept call through AZ-OS** / **End call (re-veil)**
-and the obfuscation checkbox. CLI: `veillock azos`,
+computer. In the local app, under Advanced: **Accept call through AZ-OS**,
+**End call**, and **Keep the veil on**. CLI: `veillock azos`,
 `veillock tether --azos-accept --actor "your name"`,
 `veillock tether --obfuscation-off`.
 
@@ -163,9 +146,9 @@ Forks are welcome and always allowed.
 
 ## Local UI
 
-`veillock ui` serves a loopback dashboard at http://127.0.0.1:8761
+`veillock ui` prints `Open http://127.0.0.1:8761/` and serves the app on this computer only.
 
-Binds to `127.0.0.1` only. Self-contained HTML (no CDN). Synthetic frames are sealed in-process; the session key is shown once. The **Tether** panel starts/stops the virtual camera. The **AZ-OS hook** panel is your consent surface: obfuscation on by default, accept a call to lift the veil, end the call to re-veil.
+The first screen has one primary button, **Start camera veil**, and a secondary **Check this computer**. Source, seal mode, AZ-OS consent, sample frames, and call-app steps are under **Advanced**. The page follows the system light or dark setting. `Accept: application/json` on `GET /` returns the same JSON as `GET /health`.
 
 ## What it does
 
@@ -231,8 +214,12 @@ veillock decrypt --in cipher.npz --out frames.npy --key <hex>
 # Broadcast can unwrap with the receiver secret instead
 veillock decrypt --in cipher.npz --out frames.npy --receiver-secret <hex>
 
+veillock                 # welcome and next steps
+veillock --help
 veillock version
-veillock ui            # localhost UI on 127.0.0.1:8761 (Tether + AZ-OS)
+veillock ui            # prints Open http://127.0.0.1:8761/
+veillock doctor        # add --json for the same report as JSON
+veillock azos --json
 veillock azos          # consent-hook status
 veillock tether --source camera --mode obfuscation --device 0
 veillock tether --obfuscation-off

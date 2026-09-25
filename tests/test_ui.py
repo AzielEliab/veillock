@@ -43,6 +43,11 @@ def test_ui_get_root_contains_tether() -> None:
             assert b"not AES-256-GCM" in body
             assert b"AZ-OS" in body
             assert b"consent" in body.lower() or b"Consent" in body
+            assert b"Start camera veil" in body
+            assert b"Advanced" in body
+            assert b"prefers-color-scheme" in body
+            assert b":focus-visible" in body
+            assert b"#c9a227" in body
     finally:
         httpd.shutdown()
         httpd.server_close()

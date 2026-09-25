@@ -1,34 +1,32 @@
 # VeilLock — iPhone & Android
 
-Local-first Flutter client for VeilLock. Live camera preview with a
-consent-gated privacy veil (AZ-OS). Offline. No analytics.
+A local camera preview. The veil stays on until you change it under Advanced.
 
-**This overlay is the mobile obfuscation surface.** It is **not**
-AES-GCM. Desktop VeilLock (Python) remains the AES-256-GCM engine.
+**Author:** Aziel Eliab
+
+The phone overlay is a visual veil. AES-256-GCM runs in the Python desktop package.
 
 Application id: `com.azieeliab.veillock`
 
+## Start
+
+1. Create the platform folders (this tree ships the Dart app).
+
+   ```bash
+   cd mobile
+   flutter create --org com.azieeliab --project-name veillock .
+   ```
+
+2. Fetch packages: `flutter pub get`
+3. Run: `flutter run`
+
 ## Open in Android Studio / Xcode
 
-The `android/` and `ios/` folders here are skeleton READMEs because
-this tree was written without the Flutter SDK on PATH.
+After `flutter create`, add the camera permission in `android/README.md` and `ios/README.md`. Open `android/` in Android Studio, or `ios/Runner.xcworkspace` in Xcode.
 
-```bash
-cd mobile
-flutter create --org com.azieeliab --project-name veillock .
-# add CAMERA permission (see android/README.md and ios/README.md)
-flutter pub get
-flutter run
-```
+## Desktop package
 
-Then open `android/` in Android Studio, or `ios/Runner.xcworkspace` in
-Xcode.
-
-## Desktop package (counted download)
-
-This phone app does not replace the desktop package.
-
-# → https://veillock-download-tracker.vibelock.workers.dev/ ←
+The Python package is the counted desktop download: https://veillock-download-tracker.vibelock.workers.dev/
 
 GitHub: https://github.com/AzielEliab/veillock
 
